@@ -1,0 +1,2987 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skill Creator — 可视化 Skill IDE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand:        #d97757;
+      --brand-hover:  #c4623d;
+      --bg:           #f9f6f2;
+      --surface:      #ffffff;
+      --border:       #e8e2d9;
+      --text:         #1a1a1a;
+      --text-muted:   #8a7f74;
+      --text-faint:   #b5aca1;
+      --preview-bg:   #f9f6f2;
+      --preview-text: #3d3530;
+      --success:      #3a9b6f;
+      --error:        #d05050;
+      --overlay:      rgba(0,0,0,0.28);
+      --node-bg:      #ffffff;
+      --node-border:  #e0d6cc;
+      --node-text:    #3d2f26;
+      --edge-color:   rgba(212,160,144,0.85);
+      --grid-dot:     rgba(0,0,0,0.07);
+    }
+    [data-theme="dark"] {
+      --bg:           #181818;
+      --surface:      #222222;
+      --border:       #333333;
+      --text:         #e8e3dc;
+      --text-muted:   #9a948e;
+      --text-faint:   #52504d;
+      --preview-bg:   #1e1e1e;
+      --preview-text: #cdc8c2;
+      --overlay:      rgba(0,0,0,0.55);
+      --node-bg:      #2a2424;
+      --node-border:  #5a3e34;
+      --node-text:    #cdc8c2;
+      --edge-color:   rgba(122,90,82,0.9);
+      --grid-dot:     rgba(255,255,255,0.05);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      color: var(--text);
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+      height: 52px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+    .logo-mark {
+      width: 28px; height: 28px;
+      background: var(--brand);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo-mark svg { width: 15px; height: 15px; }
+    header h1 {
+      font-size: 14px; font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+    .save-indicator { font-size: 11px; color: var(--text-faint); white-space: nowrap; }
+    .sep { width: 1px; height: 18px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 5px 12px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 12.5px;
+      font-family: inherit;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      display: flex; align-items: center; gap: 5px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .btn:hover { background: var(--bg); color: var(--text); }
+    .btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+    .btn:disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; }
+    .btn-icon {
+      padding: 8px 8px;
+      min-height: 36px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: background 0.15s, color 0.15s;
+      display: flex; align-items: center; flex-shrink: 0;
+    }
+    .btn-icon:hover { background: var(--bg); color: var(--text); }
+    .btn-icon:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+    .btn-primary { background: var(--brand); color: #fff !important; border-color: var(--brand); }
+    .btn-primary:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
+    .btn-success { background: var(--success) !important; border-color: var(--success) !important; color: #fff !important; }
+
+    /* ── Tab bar ── */
+    .tab-bar {
+      height: 34px; background: var(--bg); border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-end; padding: 0 8px; gap: 2px;
+      overflow-x: auto; flex-shrink: 0;
+    }
+    .tab {
+      height: 26px; padding: 0 10px 0 12px; border-radius: 5px 5px 0 0;
+      border: 1px solid transparent; border-bottom: none;
+      background: transparent; cursor: pointer;
+      font-size: 12px; font-family: inherit; color: var(--text-muted);
+      display: flex; align-items: center; gap: 5px;
+      white-space: nowrap; transition: background 0.12s, border-color 0.12s;
+      max-width: 160px; min-width: 60px;
+    }
+    .tab:hover { background: var(--surface); color: var(--text); }
+    .tab.active { background: var(--surface); border-color: var(--border); color: var(--text); }
+    .tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+    .tab-close {
+      opacity: 0; border: none; background: none; cursor: pointer;
+      color: var(--text-faint); font-size: 13px; padding: 0 2px;
+      border-radius: 3px; line-height: 1; flex-shrink: 0;
+      transition: opacity 0.12s, color 0.12s;
+    }
+    .tab:hover .tab-close, .tab.active .tab-close { opacity: 0.6; }
+    .tab-close:hover { opacity: 1 !important; color: var(--error) !important; }
+    .tab-add {
+      height: 26px; padding: 0 8px; align-self: center;
+      border: none; background: none; cursor: pointer;
+      font-size: 16px; color: var(--text-faint); border-radius: 4px;
+      transition: color 0.1s; flex-shrink: 0;
+    }
+    .tab-add:hover { color: var(--text); }
+
+    /* ── Layout ── */
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── Canvas ── */
+    #canvas-wrapper {
+      position: relative;
+      overflow: hidden;
+      flex: 1;
+      background-color: var(--bg);
+      background-image: radial-gradient(circle, var(--grid-dot) 1px, transparent 1px);
+      background-size: 28px 28px;
+      cursor: default;
+    }
+    #canvas {
+      position: absolute;
+      transform-origin: 0 0;
+    }
+    #edges-svg {
+      position: absolute;
+      left: 0; top: 0;
+      width: 200000px;
+      height: 200000px;
+      pointer-events: none;
+    }
+
+    /* ── Minimap ── */
+    #minimap {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      width: 180px;
+      height: 120px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+      z-index: 10;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(6px);
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    #minimap.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    /* Hover zone for minimap trigger */
+    #minimap-zone {
+      position: absolute;
+      bottom: 0; left: 0;
+      width: 220px; height: 160px;
+      z-index: 9;
+      pointer-events: auto;
+    }
+
+    /* ── Nodes ── */
+    .mm-node {
+      position: absolute;
+      transform: translateY(-50%);  /* left-anchored: x = left edge, y = center */
+      padding: 7px 14px;
+      border-radius: 9px;
+      background: var(--node-bg);
+      border: 1.5px solid var(--node-border);
+      color: var(--node-text);
+      cursor: grab;
+      user-select: none;
+      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.4;
+      transition: box-shadow 0.12s, border-color 0.12s;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+    }
+    .mm-node:hover { border-color: var(--brand); box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .mm-node.is-selected {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(217,119,87,0.22);
+    }
+    .mm-node.is-root {
+      transform: translate(-50%, -50%);  /* root stays centered */
+      background: var(--brand);
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+      border-color: rgba(255,255,255,0.18);
+      border-radius: 11px;
+      padding: 9px 20px;
+    }
+    .mm-node.is-root:hover { border-color: rgba(255,255,255,0.35); }
+    .mm-node.is-root .node-text { color: #fff; }
+    .mm-node.is-dragging {
+      cursor: grabbing;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.18);
+      z-index: 100;
+      opacity: 0.92;
+    }
+    .node-text { outline: none; min-width: 20px; text-align: left; }
+    .node-text[contenteditable="true"] {
+      cursor: text;
+      background: transparent;
+      caret-color: var(--brand);
+    }
+    .node-img {
+      display: block;
+      border-radius: 5px;
+      pointer-events: none;
+      max-width: 200px;
+    }
+
+    /* ── Node row (text + collapse btn) ── */
+    .node-row { display: flex; align-items: center; gap: 5px; }
+    .node-collapse-btn {
+      border: none; background: transparent; color: var(--text-faint);
+      cursor: pointer; padding: 0; font-size: 9px; line-height: 1;
+      opacity: 0.5; flex-shrink: 0; transition: opacity 0.15s, color 0.15s;
+    }
+    .node-collapse-btn:hover { opacity: 1; color: var(--brand); }
+    .mm-node.is-root .node-collapse-btn { color: rgba(255,255,255,0.7); }
+    .mm-node.is-root .node-collapse-btn:hover { color: #fff; opacity: 1; }
+
+    /* ── Node type system ── */
+    .mm-node[data-type="trigger"]     { border-left: 3px solid #3b82f6; }
+    .mm-node[data-type="step"]        { border-left: 3px solid #10b981; }
+    .mm-node[data-type="tool"]        { border-left: 3px solid #8b5cf6; }
+    .mm-node[data-type="description"] { border-left: 3px solid #6b7280; }
+    .mm-node[data-type="note"]        { border-left: 3px solid #f59e0b; }
+    .mm-node[data-type="example"]     { border-left: 3px solid #14b8a6; }
+
+    .node-type-badge {
+      width: 7px; height: 7px; border-radius: 50%;
+      flex-shrink: 0; pointer-events: none;
+    }
+    .node-type-badge.t-trigger     { background: #3b82f6; }
+    .node-type-badge.t-step        { background: #10b981; }
+    .node-type-badge.t-tool        { background: #8b5cf6; }
+    .node-type-badge.t-description { background: #9ca3af; }
+    .node-type-badge.t-note        { background: #f59e0b; }
+    .node-type-badge.t-example     { background: #14b8a6; }
+
+    /* ── Context Menu ── */
+    .ctx-menu {
+      position: fixed;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.13);
+      padding: 4px;
+      z-index: 900;
+      min-width: 156px;
+      display: none;
+    }
+    .ctx-menu.open { display: block; }
+    .ctx-item {
+      padding: 7px 12px;
+      font-size: 13px;
+      color: var(--text-muted);
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+      transition: background 0.1s, color 0.1s;
+    }
+    .ctx-item:hover { background: var(--bg); color: var(--text); }
+    .ctx-item.ctx-danger { color: var(--error); }
+    .ctx-item.ctx-danger:hover { background: rgba(208,80,80,0.07); }
+    .ctx-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+    /* ── Divider ── */
+    .divider {
+      width: 1px; background: var(--border);
+      cursor: col-resize; flex-shrink: 0;
+      position: relative; transition: background 0.15s;
+    }
+    .divider::after { content: ''; position: absolute; inset: 0 -5px; }
+    .divider:hover, .divider.dragging { background: var(--brand); }
+    /* Arrow toggle button on divider */
+    #divider-toggle {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 18px; height: 36px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 9px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: var(--text-muted);
+      z-index: 5; transition: color 0.15s, border-color 0.15s, background 0.15s;
+      line-height: 1;
+    }
+    #divider-toggle:hover { color: var(--brand); border-color: var(--brand); background: var(--bg); }
+
+    /* ── Preview Panel ── */
+    .preview-panel {
+      width: 280px; min-width: 180px; max-width: 600px;
+      background: var(--surface);
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    .preview-header {
+      padding: 9px 14px;
+      font-size: 10.5px; font-weight: 600;
+      color: var(--text-faint);
+      text-transform: uppercase; letter-spacing: 0.09em;
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    #markdown-output {
+      flex: 1; padding: 16px;
+      font-family: 'SFMono-Regular', ui-monospace, Menlo, monospace;
+      font-size: 12px; line-height: 1.8;
+      color: var(--preview-text);
+      overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+      background: var(--preview-bg);
+      transition: background 0.2s, color 0.2s;
+      border: none; outline: none; resize: none;
+    }
+
+
+    /* ── Hint bar (hidden) ── */
+    .hint { display: none; }
+
+    /* ── Floating hint button ── */
+    #hint-fab {
+      position: absolute; bottom: 16px; right: 16px; z-index: 200;
+      width: 34px; height: 34px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+      transition: box-shadow 0.15s, border-color 0.15s;
+    }
+    #hint-fab:hover { border-color: var(--brand); box-shadow: 0 4px 16px rgba(0,0,0,0.14); }
+    #hint-popup {
+      position: absolute; bottom: 58px; right: 16px; z-index: 199;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 14px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.13);
+      font-size: 11px; color: var(--text-faint);
+      display: flex; flex-direction: column; gap: 5px;
+      min-width: 200px;
+      opacity: 0; pointer-events: none;
+      transform: translateY(6px);
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    #hint-popup.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+    #hint-popup span { display: flex; align-items: center; gap: 5px; }
+    #hint-popup kbd {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 3px; padding: 1px 5px;
+      font-size: 10px; font-family: inherit; color: var(--text-muted);
+    }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: var(--overlay); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 24px;
+      width: 440px; max-width: calc(100vw - 32px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+    }
+    .modal h2 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 18px; }
+    .form-group { margin-bottom: 13px; }
+    .form-group label {
+      display: block; font-size: 11.5px; font-weight: 500;
+      color: var(--text-muted); margin-bottom: 5px;
+    }
+    .form-group input {
+      width: 100%; padding: 8px 10px;
+      border-radius: 7px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text);
+      font-size: 13px; font-family: inherit;
+      outline: none; transition: border-color 0.15s;
+    }
+    .form-group input:focus { border-color: var(--brand); }
+    .form-row { display: flex; gap: 10px; }
+    .form-row .form-group { flex: 1; min-width: 0; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+    .modal-note { font-size: 11.5px; color: var(--text-faint); margin-top: -6px; margin-bottom: 13px; line-height: 1.5; }
+
+    /* ── Import modal tabs ── */
+    .modal-tab-bar { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .modal-tab {
+      padding: 7px 14px; font-size: 12.5px; font-weight: 500;
+      color: var(--text-muted); cursor: pointer; border: none; background: none;
+      font-family: inherit; border-bottom: 2px solid transparent;
+      margin-bottom: -1px; transition: color 0.15s, border-color 0.15s;
+    }
+    .modal-tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+    .modal-pane { display: none; }
+    .modal-pane.active { display: block; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; bottom: 52px; left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); padding: 8px 16px; border-radius: 8px;
+      font-size: 13px; opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none; z-index: 2000;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.is-error { border-color: var(--error); color: var(--error); }
+
+    #import-input { display: none; }
+
+    /* ── AI loading animation ── */
+    @keyframes ai-pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.42; }
+    }
+    .mm-node.ai-loading {
+      animation: ai-pulse 1.1s ease-in-out infinite;
+      pointer-events: none;
+    }
+    .mm-node.ai-loading .node-text::after {
+      content: ' ✦';
+      color: var(--brand);
+      opacity: 0.8;
+    }
+
+    /* ── Lint panel ── */
+    .lint-panel {
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      max-height: 116px;
+      overflow-y: auto;
+    }
+    .lint-panel:empty { display: none; }
+    .lint-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.45;
+      padding: 6px 12px;
+    }
+    .lint-item + .lint-item { border-top: 1px solid var(--border); }
+    .lint-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+    .lint-dot.warn  { background: #f59e0b; }
+    .lint-dot.error { background: #ef4444; }
+
+    /* ── Connection port (appears on node hover) ── */
+    .connect-port {
+      position: absolute;
+      right: -8px; top: 50%;
+      transform: translateY(-50%);
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--brand);
+      border: 2px solid var(--surface);
+      opacity: 0;
+      cursor: crosshair;
+      transition: opacity 0.15s, transform 0.15s;
+      z-index: 5;
+      flex-shrink: 0;
+    }
+    .mm-node:hover .connect-port { opacity: 0.75; }
+    .connect-port:hover { opacity: 1 !important; transform: translateY(-50%) scale(1.25); }
+
+    /* ── Preset inspiration panel ── */
+    .preset-panel {
+      position: absolute;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 6px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      z-index: 200;
+      min-width: 200px;
+      display: none;
+    }
+    .preset-panel.open { display: block; }
+    .preset-title {
+      font-size: 10.5px; font-weight: 600;
+      color: var(--text-faint); text-transform: uppercase;
+      letter-spacing: 0.06em; padding: 2px 8px 6px;
+    }
+    .preset-item {
+      padding: 6px 10px; border-radius: 6px;
+      font-size: 12.5px; color: var(--text);
+      cursor: pointer; transition: background 0.12s;
+      line-height: 1.35;
+    }
+    .preset-item:hover { background: var(--bg); }
+    .preset-sep { height: 1px; background: var(--border); margin: 4px 6px; }
+
+    /* ── Inspiration button on empty root ── */
+    .inspo-btn {
+      font-size: 11px; color: var(--text-faint);
+      border: 1px dashed var(--border); border-radius: 6px;
+      padding: 2px 7px; cursor: pointer; white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+      user-select: none; margin-left: 6px; flex-shrink: 0;
+    }
+    .inspo-btn:hover { color: var(--brand); border-color: var(--brand); }
+
+    /* ── Lasso selection rect ── */
+    #lasso-rect {
+      position: absolute; pointer-events: none; z-index: 50;
+      border: 1.5px dashed var(--brand);
+      background: rgba(217,119,87,0.06);
+      border-radius: 3px;
+      display: none;
+    }
+    .mm-node.is-lasso-selected {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px rgba(217,119,87,0.28);
+    }
+
+    /* ── Double-click canvas hint ── */
+    .canvas-dblclick-hint {
+      position: absolute; left: 50%; top: 50%;
+      transform: translate(-50%, 60px);
+      font-size: 12px; color: var(--text-faint);
+      pointer-events: none; user-select: none;
+      opacity: 0; transition: opacity 0.4s;
+    }
+    .canvas-dblclick-hint.visible { opacity: 1; }
+
+    /* ── Empty root node placeholder ── */
+    .mm-node.is-empty-root .node-text:empty::before {
+      content: '双击命名…';
+      color: var(--text-faint);
+      font-style: italic;
+    }
+    .mm-node.is-empty-root {
+      border-style: dashed;
+      opacity: 0.85;
+    }
+
+    /* ── Root quality score badge ── */
+
+    /* ── Empty state guide ── */
+    .empty-guide {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, calc(-50% + 70px));
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 22px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 10;
+      min-width: 240px;
+    }
+    .empty-guide.visible { opacity: 1; pointer-events: auto; }
+    .empty-guide-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+    .empty-guide-steps {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      counter-reset: step;
+    }
+    .empty-guide-steps li {
+      counter-increment: step;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      padding: 3px 0;
+    }
+    .empty-guide-steps li::before {
+      content: counter(step);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      background: var(--brand);
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .empty-guide-steps kbd {
+      font-size: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 0 4px;
+      font-family: inherit;
+    }
+
+    /* ── AI setup modal ── */
+    #overlay-ai-setup .modal { max-width: 400px; }
+    .ai-setup-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin: 0 0 16px;
+    }
+    .ai-setup-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--brand);
+      text-decoration: none;
+    }
+    .ai-setup-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/>
+        <line x1="12" y1="7" x2="5" y2="17"/><line x1="12" y1="7" x2="19" y2="17"/>
+      </svg>
+    </div>
+    <h1>Skill Creator</h1>
+    <span class="save-indicator" id="save-indicator"></span>
+  </div>
+
+  <!-- Import / Export -->
+  <button class="btn-icon" id="btn-import" title="导入 (.json / .md)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+  </button>
+  <button class="btn-icon" id="btn-save-json" title="存档 (.json)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+  </button>
+  <button class="btn-icon" id="btn-image" title="向选中节点插入图片">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+  </button>
+
+  <div class="sep"></div>
+
+  <!-- Export & GitHub -->
+  <button class="btn-icon" id="btn-copy" title="复制 SKILL.md">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+  </button>
+  <button class="btn-icon" id="btn-export-md" title="导出 SKILL.md">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+  </button>
+  <button class="btn-icon" id="btn-github" title="推送 GitHub" style="color:var(--brand)">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.418 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.532 1.03 1.532 1.03.892 1.529 2.341 1.087 2.91.832.091-.647.349-1.086.635-1.337-2.22-.253-4.555-1.111-4.555-4.943 0-1.091.39-1.984 1.03-2.683-.104-.253-.447-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.679.919.679 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+  </button>
+
+  <div class="sep"></div>
+
+  <!-- Theme & Settings -->
+  <button class="btn-icon" id="btn-fitview" title="适应视图 (F)">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+  </button>
+  <button class="btn-icon" id="btn-layout" title="整理布局 (L)">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="4" rx="1"/><rect x="3" y="10" width="7" height="4" rx="1"/><rect x="3" y="17" width="7" height="4" rx="1"/><line x1="14" y1="5" x2="21" y2="5"/><line x1="14" y1="12" x2="21" y2="12"/><line x1="14" y1="19" x2="21" y2="19"/></svg>
+  </button>
+  <button class="btn-icon" id="btn-dark" title="切换夜间模式">
+    <svg id="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    <svg id="icon-sun"  width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+  </button>
+  <button class="btn-icon" id="btn-settings" title="GitHub 设置">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+</header>
+
+<!-- Tab bar -->
+<div class="tab-bar" id="tab-bar"></div>
+
+<div class="main">
+  <div id="canvas-wrapper">
+    <div id="canvas">
+      <svg id="edges-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div id="minimap-zone"></div>
+    <canvas id="minimap" width="180" height="120" title="小地图 · 点击居中"></canvas>
+    <!-- First-run empty state guide -->
+    <div id="empty-guide" class="empty-guide">
+      <div class="empty-guide-title">👋 空白画布</div>
+      <ol class="empty-guide-steps">
+        <li>双击空白处新增根节点，双击节点编辑名称</li>
+        <li>按 <kbd>Tab</kbd> 添加子节点，<kbd>Enter</kbd> 添加兄弟节点</li>
+        <li>选中节点按 <kbd>⌘G</kbd>，让 AI 帮你扩展内容</li>
+        <li>拖拽节点右侧 <span style="color:var(--brand)">●</span> 建立连线</li>
+      </ol>
+    </div>
+    <!-- Double-click hint -->
+    <div class="canvas-dblclick-hint">双击空白处新增节点</div>
+    <!-- Lasso selection rect -->
+    <div id="lasso-rect"></div>
+    <!-- Hint FAB -->
+    <button id="hint-fab" title="快捷键说明">💡</button>
+    <div id="hint-popup">
+      <span><kbd>单击</kbd> 编辑节点</span>
+      <span><kbd>Tab</kbd> 子节点 &nbsp;<kbd>Enter</kbd> 兄弟节点</span>
+      <span><kbd>Delete</kbd> 删除节点</span>
+      <span><kbd>⌘Z</kbd> 撤销 &nbsp;<kbd>⌘⇧Z</kbd> 重做</span>
+      <span><kbd>Shift+拖拽</kbd> 框选节点</span>
+      <span><kbd>拖拽背景</kbd> 平移画布</span>
+      <span><kbd>滚轮</kbd> 缩放</span>
+      <span><kbd>右键</kbd> 更多操作</span>
+      <span><kbd>F</kbd> 适应视图 &nbsp;<kbd>L</kbd> 整理布局</span>
+      <span><kbd>⌘G</kbd> AI 展开 &nbsp;<kbd>⌘B</kbd> 面板</span>
+      <span><kbd>⌘T</kbd> 新标签 &nbsp;<kbd>⌘W</kbd> 关闭标签</span>
+    </div>
+  </div>
+  <div class="divider" id="divider">
+    <button id="divider-toggle" title="展开/折叠面板 (⌘B)">‹</button>
+  </div>
+  <div class="preview-panel">
+    <div class="preview-header">
+      <span>SKILL.md 预览</span>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="btn btn-primary" id="btn-install" title="保存 SKILL.md 到本地" style="font-size:11px;padding:3px 10px;height:auto;">⬇ 安装</button>
+      </div>
+    </div>
+    <textarea id="markdown-output" spellcheck="false" readonly></textarea>
+    <div class="lint-panel" id="lint-panel"></div>
+  </div>
+</div>
+
+<div class="hint">
+  <span><kbd>双击</kbd> 编辑</span>
+  <span><kbd>Tab</kbd> 子节点</span>
+  <span><kbd>Enter</kbd> 兄弟节点</span>
+  <span><kbd>Delete</kbd> 删除</span>
+  <span><kbd>拖拽节点</kbd> 自由移动</span>
+  <span><kbd>拖拽背景</kbd> 平移画布</span>
+  <span><kbd>滚轮</kbd> 缩放</span>
+  <span><kbd>右键</kbd> 更多操作</span>
+  <span><kbd>F</kbd> 适应视图</span>
+  <span><kbd>L</kbd> 整理布局</span>
+  <span><kbd>⌘T</kbd> 新标签</span>
+  <span><kbd>⌘W</kbd> 关闭标签</span>
+  <span><kbd>⌘B</kbd> 面板</span>
+  <span><kbd>⌘G</kbd> AI 展开</span>
+</div>
+
+<!-- Context Menu -->
+<div class="ctx-menu" id="ctx-menu">
+  <div class="ctx-item" data-action="ai-expand" style="color:var(--brand);font-weight:500">✦ AI 展开子节点</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" data-action="add-child">添加子节点</div>
+  <div class="ctx-item" data-action="add-sibling">添加兄弟节点</div>
+  <div class="ctx-item" data-action="edit">编辑节点</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" data-action="set-type-trigger">🔵 设为触发条件</div>
+  <div class="ctx-item" data-action="set-type-step">🟢 设为执行步骤</div>
+  <div class="ctx-item" data-action="set-type-tool">🟣 设为使用工具</div>
+  <div class="ctx-item" data-action="set-type-description">⚪ 设为技能描述</div>
+  <div class="ctx-item" data-action="set-type-note">🟡 设为注意事项</div>
+  <div class="ctx-item" data-action="set-type-example">🩵 设为使用示例</div>
+  <div class="ctx-item" data-action="set-type-none">✕ 清除类型</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" data-action="image">插入图片</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item ctx-danger" data-action="delete">删除节点</div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="overlay-settings">
+  <div class="modal">
+    <h2>GitHub 设置</h2>
+    <div class="form-group">
+      <label>Personal Access Token</label>
+      <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
+    </div>
+    <p class="modal-note">需要 <code>contents</code> 读写权限。Token 仅存储在本地 localStorage。</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>用户名 / 组织</label>
+        <input type="text" id="gh-owner" placeholder="username">
+      </div>
+      <div class="form-group">
+        <label>仓库名</label>
+        <input type="text" id="gh-repo" placeholder="my-notes">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>文件路径</label>
+        <input type="text" id="gh-path" placeholder="mindmap.md">
+      </div>
+      <div class="form-group">
+        <label>分支</label>
+        <input type="text" id="gh-branch" placeholder="main">
+      </div>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0 14px;">
+    <div class="form-group">
+      <label>Anthropic API Key（用于 ⌘G AI 协作功能）</label>
+      <input type="password" id="anthropic-key" placeholder="sk-ant-api03-xxxx" autocomplete="off">
+    </div>
+    <p class="modal-note">Key 仅存储在本地 localStorage，不会发送到除 Anthropic API 之外的任何地方。</p>
+    <div class="modal-footer">
+      <button class="btn" id="btn-settings-cancel">取消</button>
+      <button class="btn btn-primary" id="btn-settings-save">保存设置</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI Setup Modal -->
+<div class="modal-overlay" id="overlay-ai-setup">
+  <div class="modal">
+    <h2>✦ 启用 AI 协作</h2>
+    <p class="ai-setup-desc">
+      ⌘G 可以让 AI 自动为选中节点生成子节点，帮你快速补全 Skill 内容。<br>
+      输入 Anthropic API Key 即可启用。
+    </p>
+    <div class="form-group">
+      <label>Anthropic API Key</label>
+      <input type="password" id="ai-setup-key" placeholder="sk-ant-api03-xxxx" autocomplete="off">
+    </div>
+    <p class="modal-note">
+      <a class="ai-setup-link" href="https://console.anthropic.com/keys" target="_blank">↗ 前往 console.anthropic.com/keys 获取 Key</a><br>
+      Key 仅存储在本地 localStorage，不会发送到 Anthropic API 以外的任何地方。
+    </p>
+    <div class="modal-footer">
+      <button class="btn" id="btn-ai-setup-cancel">取消</button>
+      <button class="btn btn-primary" id="btn-ai-setup-save">保存并展开 ✦</button>
+    </div>
+  </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal-overlay" id="overlay-image">
+  <div class="modal">
+    <h2>插入图片到节点</h2>
+    <div class="form-group">
+      <label>图片 URL</label>
+      <input type="url" id="img-url" placeholder="https://example.com/image.png">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>宽度 (px)</label>
+        <input type="number" id="img-width" value="200" min="20" max="800">
+      </div>
+      <div class="form-group">
+        <label>高度 (px)</label>
+        <input type="number" id="img-height" value="150" min="20" max="600">
+      </div>
+    </div>
+    <p class="modal-note">请先在画布中点选目标节点，再点击「插入图片」。</p>
+    <div class="modal-footer">
+      <button class="btn" id="btn-image-cancel">取消</button>
+      <button class="btn btn-primary" id="btn-image-ok">插入</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="overlay-import">
+  <div class="modal">
+    <h2>导入</h2>
+    <div class="modal-tab-bar">
+      <button class="modal-tab active" data-pane="pane-file">Markdown 文件</button>
+      <button class="modal-tab" data-pane="pane-url">GitHub / 网页链接</button>
+    </div>
+    <div class="modal-pane active" id="pane-file">
+      <div class="form-group">
+        <label>选择文件 (.json 或 .md)</label>
+        <input type="file" id="import-input" accept=".json,.md" style="display:block;width:100%;padding:6px 0;font-size:13px;font-family:inherit;color:var(--text);">
+      </div>
+    </div>
+    <div class="modal-pane" id="pane-url">
+      <div class="form-group">
+        <label>URL（支持 GitHub blob 链接）</label>
+        <input type="url" id="import-url" placeholder="https://github.com/user/repo/blob/main/file.md">
+      </div>
+      <p class="modal-note">GitHub blob 链接将自动转换为 raw 内容地址。</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="btn-import-cancel">取消</button>
+      <button class="btn btn-primary" id="btn-import-ok">导入</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="preset-panel" id="preset-panel"></div>
+
+<script>
+// ════════════════════════════════════════════════════
+// §1  CONSTANTS & NODE TYPES
+// ════════════════════════════════════════════════════
+const CS = 10000 // canvas center coordinate
+
+const NODE_TYPES = {
+  trigger:     { label: '触发条件', short: '触', color: '#3b82f6' },
+  step:        { label: '执行步骤', short: '步', color: '#10b981' },
+  tool:        { label: '使用工具', short: '工', color: '#8b5cf6' },
+  description: { label: '技能描述', short: '描', color: '#6b7280' },
+  note:        { label: '注意事项', short: '注', color: '#f59e0b' },
+  example:     { label: '使用示例', short: '例', color: '#14b8a6' },
+}
+
+// ════════════════════════════════════════════════════
+// §2  GLOBAL STATE
+// ════════════════════════════════════════════════════
+let tabs = []
+let activeTabId = null
+
+let tree
+let selectedId = null
+let offset = { x: 0, y: 0 }
+let scale = 1
+let dragState    = null   // node drag
+let panState     = null   // canvas pan
+let connectState = null   // connection drawing
+let lassoState   = null   // box selection
+let _nodeClickMoved = false  // true when a node mousedown turned into a drag
+
+// ── Undo / Redo ────────────────────────────────────────────────
+const undoStack = []
+const redoStack = []
+function pushHistory() {
+  undoStack.push(JSON.stringify(tree))
+  if (undoStack.length > 80) undoStack.shift()
+  redoStack.length = 0
+}
+function undo() {
+  if (!undoStack.length) return
+  redoStack.push(JSON.stringify(tree))
+  tree = JSON.parse(undoStack.pop())
+  buildMaps(); renderAll(); autoSave()
+}
+function redo() {
+  if (!redoStack.length) return
+  undoStack.push(JSON.stringify(tree))
+  tree = JSON.parse(redoStack.pop())
+  buildMaps(); renderAll(); autoSave()
+}
+let edgeRafId = null
+let ctxNodeId = null
+
+// ── Multi-root helpers ────────────────────────────────────────
+function isRootNode(id) {
+  return !!(tree && tree.roots && tree.roots.some(r => r.id === id))
+}
+
+function getActiveRoot() {
+  if (selectedId) {
+    let cur = selectedId
+    while (cur) {
+      const parent = parentMap.get(cur)
+      if (parent === null || parent === undefined) {
+        const found = tree.roots && tree.roots.find(r => r.id === cur)
+        if (found) return found
+        break
+      }
+      cur = parent?.id
+    }
+  }
+  return (tree.roots && tree.roots[0]) || null
+}
+
+function migrateTreeFormat(t) {
+  if (!t) return { roots: [{ id: 'root', topic: '', x: CS, y: CS, children: [] }], extraEdges: [] }
+  if (t.nodeData && !t.roots) {
+    return { roots: [t.nodeData], extraEdges: [] }
+  }
+  if (!t.roots) t.roots = []
+  if (!t.extraEdges) t.extraEdges = []
+  return t
+}
+
+// Skill preset categories
+const SKILL_PRESETS = [
+  { label: '📚 知识库 & 参考', topic: '知识库 & 参考文档' },
+  { label: '✅ 产品验证流程', topic: '产品验证流程' },
+  { label: '📊 数据分析',     topic: '数据分析' },
+  { label: '🔄 业务流程自动化', topic: '业务流程自动化' },
+  { label: '🧱 代码脚手架',   topic: '代码脚手架' },
+  { label: '🔍 代码质量审查', topic: '代码质量审查' },
+  { label: '🚀 CI/CD & 部署', topic: 'CI/CD & 部署' },
+  { label: '📖 运维手册',     topic: '运维手册' },
+  { label: '✍️ 写作 & 内容', topic: '写作 & 内容' },
+  { label: '🔎 研究 & 调研', topic: '研究 & 调研' },
+  { label: '⚖️ 法律 & 合规', topic: '法律 & 合规' },
+  { label: '📈 营销 & 运营',  topic: '营销 & 运营' },
+]
+
+// ════════════════════════════════════════════════════
+// §3  DOM REFERENCES
+// ════════════════════════════════════════════════════
+const htmlEl    = document.documentElement
+const wrapper   = document.getElementById('canvas-wrapper')
+const canvas    = document.getElementById('canvas')
+const edgesSvg  = document.getElementById('edges-svg')
+const ctxMenu   = document.getElementById('ctx-menu')
+
+// ════════════════════════════════════════════════════
+// §4  DATA MAPS
+// ════════════════════════════════════════════════════
+const nodeMap   = new Map()
+const parentMap = new Map()
+
+function buildMaps() {
+  nodeMap.clear()
+  parentMap.clear()
+  for (const r of (tree.roots || [])) _bm(r, null)
+}
+function _bm(node, parent) {
+  nodeMap.set(node.id, node)
+  parentMap.set(node.id, parent)
+  for (const c of node.children || []) _bm(c, node)
+}
+
+// ════════════════════════════════════════════════════
+// §5  LAYOUT ENGINE
+// ════════════════════════════════════════════════════
+// subtreeH: height of a node's visible subtree in layout units.
+// respectCollapse=true → treats collapsed nodes as leaves (used by relayout).
+function subtreeH(node, min = 72, respectCollapse = false) {
+  if (respectCollapse && node.collapsed) return min
+  const ch = node.children || []
+  if (!ch.length) return min
+  return Math.max(min, ch.reduce((s, c) => s + subtreeH(c, min, respectCollapse), 0))
+}
+
+function autoLayout(node, x, y) {
+  if (node.x === undefined) node.x = x
+  if (node.y === undefined) node.y = y
+  const ch = node.children || []
+  if (!ch.length) return
+  const total = ch.reduce((s, c) => s + subtreeH(c), 0)
+  let cy = node.y - total / 2
+  for (const c of ch) {
+    const h = subtreeH(c)
+    if (c.x === undefined) c.x = node.x + 230
+    if (c.y === undefined) c.y = cy + h / 2
+    autoLayout(c, c.x, c.y)
+    cy += h
+  }
+}
+
+// Force-reposition the whole tree based on current collapse state.
+// Root is anchored to (rootX, rootY); all children reflow compactly.
+function relayout(node, x, y) {
+  node.x = x
+  node.y = y
+  if (node.collapsed) return
+  const ch = node.children || []
+  if (!ch.length) return
+  const total = ch.reduce((s, c) => s + subtreeH(c, 72, true), 0)
+  let cy = y - total / 2
+  for (const c of ch) {
+    const h = subtreeH(c, 72, true)
+    relayout(c, x + 230, cy + h / 2)
+    cy += h
+  }
+}
+
+// ── Reset / reorganize layout ────────────────────────────────
+function resetLayout() {
+  for (const root of (tree.roots || [])) relayout(root, root.x || CS, root.y || CS)
+  clearCanvas()
+  buildMaps()
+  for (const root of (tree.roots || [])) syncNodes(root)
+  scheduleEdges()
+  fitView()
+  autoSave()
+}
+
+// Add a new root node at canvas coordinates (x, y)
+function addRootNode(x, y) {
+  pushHistory()
+  const id = genId()
+  const newRoot = { id, topic: '', x, y, children: [] }
+  tree.roots.push(newRoot)
+  buildMaps()
+  renderAll()
+  selectNode(id)
+  autoSave()
+}
+
+// ════════════════════════════════════════════════════
+// §6  TRANSFORM & VIEW
+// ════════════════════════════════════════════════════
+function applyTransform() {
+  canvas.style.transform = `translate(${offset.x}px,${offset.y}px)`
+}
+
+function fitView() {
+  const rect = wrapper.getBoundingClientRect()
+  const vw = rect.width, vh = rect.height
+
+  // Bounding box of all nodes in canvas coords (skip collapsed subtrees)
+  // Non-root nodes are left-anchored, so right edge = x + width/scale
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  function b(node) {
+    const el = document.getElementById('n-' + node.id)
+    const isRoot = isRootNode(node.id)
+    const nw = el ? el.offsetWidth / (scale || 1) : 80
+    const left  = isRoot ? node.x - nw / 2 : node.x
+    const right = isRoot ? node.x + nw / 2 : node.x + nw
+    if (left  < minX) minX = left
+    if (right > maxX) maxX = right
+    if (node.y < minY) minY = node.y
+    if (node.y > maxY) maxY = node.y
+    if (node.collapsed) return
+    for (const c of node.children || []) b(c)
+  }
+  for (const root of (tree.roots || [])) b(root)
+
+  const PAD = 100
+  const tW = maxX - minX || 1, tH = maxY - minY || 1
+  scale = Math.min((vw - PAD*2) / tW, (vh - PAD*2) / tH, 1.0)
+  scale = Math.max(0.5, Math.min(1, scale))
+
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2
+  offset.x = vw / 2 - cx * scale
+  offset.y = vh / 2 - cy * scale
+
+  applyTransform()
+  for (const root of (tree.roots || [])) syncNodes(root)
+  scheduleEdges()
+  drawMinimap()
+}
+
+// ════════════════════════════════════════════════════
+// §7  RENDER — NODES
+// ════════════════════════════════════════════════════
+const knownIds = new Set()
+
+function clearCanvas() {
+  knownIds.forEach(id => document.getElementById('n-' + id)?.remove())
+  knownIds.clear()
+}
+
+// Collect all IDs of visible (non-collapsed-subtree) nodes
+function collectVisibleIds(node, set) {
+  set.add(node.id)
+  if (node.collapsed) return
+  for (const c of node.children || []) collectVisibleIds(c, set)
+}
+
+function renderAll() {
+  buildMaps()
+  for (const root of (tree.roots || [])) syncNodes(root)
+  // Remove stale node elements
+  for (const id of [...knownIds]) {
+    if (!nodeMap.has(id)) {
+      document.getElementById('n-' + id)?.remove()
+      knownIds.delete(id)
+    }
+  }
+  // Hide nodes in collapsed subtrees, show visible ones
+  const visibleIds = new Set()
+  for (const root of (tree.roots || [])) collectVisibleIds(root, visibleIds)
+  for (const id of knownIds) {
+    const el = document.getElementById('n-' + id)
+    if (!el) continue
+    el.style.display = visibleIds.has(id) ? '' : 'none'
+  }
+  scheduleEdges()
+  drawMinimap()
+  updateCanvasHint()
+}
+
+function updateCanvasHint() {
+  const hint = document.querySelector('.canvas-dblclick-hint')
+  if (!hint) return
+  const total = (tree.roots || []).reduce((s, r) => s + countNodes(r), 0)
+  hint.classList.toggle('visible', total === 0)
+}
+
+function syncNodes(node) {
+  let el = document.getElementById('n-' + node.id)
+  if (!el) {
+    el = document.createElement('div')
+    el.id = 'n-' + node.id
+    el.dataset.id = node.id
+    canvas.appendChild(el)
+    knownIds.add(node.id)
+    attachNodeEvents(el, node)
+  }
+
+  // Content — rebuild .node-row if needed (don't clobber while editing)
+  let textEl = el.querySelector('.node-text')
+  const hasChildren = (node.children && node.children.length > 0)
+
+  if (!textEl) {
+    el.innerHTML = ''
+    const rowDiv = document.createElement('div')
+    rowDiv.className = 'node-row'
+    textEl = document.createElement('span')
+    textEl.className = 'node-text'
+    rowDiv.appendChild(textEl)
+    el.appendChild(rowDiv)
+  }
+
+  // Manage collapse button
+  const rowDiv = el.querySelector('.node-row')
+  const _isRoot = isRootNode(node.id)
+  let collapseBtn = el.querySelector('.node-collapse-btn')
+  if (hasChildren) {
+    // Remove inspo button if we now have children
+    el.querySelector('.inspo-btn')?.remove()
+    if (!collapseBtn) {
+      collapseBtn = document.createElement('button')
+      collapseBtn.className = 'node-collapse-btn'
+      collapseBtn.addEventListener('mousedown', e => e.stopPropagation())
+      collapseBtn.addEventListener('click', e => {
+        e.stopPropagation()
+        node.collapsed = !node.collapsed
+        const rootOfNode = tree.roots && tree.roots.find(r => {
+          let cur = node.id
+          while (cur) {
+            if (cur === r.id) return true
+            const p = parentMap.get(cur)
+            if (!p) break
+            cur = p.id
+          }
+          return false
+        })
+        if (rootOfNode) relayout(rootOfNode, rootOfNode.x || CS, rootOfNode.y || CS)
+        renderAll()
+        fitView()
+        autoSave()
+      })
+      if (rowDiv) rowDiv.appendChild(collapseBtn)
+    }
+    collapseBtn.textContent = node.collapsed ? '▶' : '▼'
+    collapseBtn.title = node.collapsed ? '展开' : '折叠'
+  } else {
+    collapseBtn?.remove()
+    el.querySelector('.inspo-btn')?.remove()
+  }
+
+  if (textEl.contentEditable !== 'true') textEl.textContent = node.topic || (_isRoot ? '' : '新节点')
+
+  // Type badge — tiny 1-char pill inside node-row, before text
+  let badgeEl = el.querySelector('.node-type-badge')
+  const typeInfo = node.type ? NODE_TYPES[node.type] : null
+  if (typeInfo && !_isRoot) {
+    if (!badgeEl) {
+      badgeEl = document.createElement('span')
+      badgeEl.className = 'node-type-badge'
+      rowDiv.insertBefore(badgeEl, rowDiv.firstChild)
+    }
+    badgeEl.className = `node-type-badge t-${node.type}`
+    badgeEl.textContent = ''
+    badgeEl.title = typeInfo.label
+  } else {
+    badgeEl?.remove()
+  }
+
+  // Remove any stale score badge (cleanup)
+  el.querySelector('.root-score-badge')?.remove()
+
+  // Connect port (drag to create connections)
+  let portEl = el.querySelector('.connect-port')
+  if (!portEl) {
+    portEl = document.createElement('div')
+    portEl.className = 'connect-port'
+    portEl.title = '拖拽建立连线'
+    portEl.addEventListener('mousedown', e => {
+      e.stopPropagation()
+      e.preventDefault()
+      const rect = wrapper.getBoundingClientRect()
+      connectState = {
+        fromId: node.id, fromNode: node,
+        ghostX: e.clientX - rect.left - offset.x,
+        ghostY: e.clientY - rect.top  - offset.y,
+      }
+    })
+    el.appendChild(portEl)
+  }
+
+  // Image
+  let img = el.querySelector('.node-img')
+  if (node.image?.url) {
+    if (!img) { img = document.createElement('img'); img.className = 'node-img'; el.appendChild(img) }
+    img.src = node.image.url
+    img.style.width  = (node.image.width  || 200) * scale + 'px'
+    img.style.height = (node.image.height || 150) * scale + 'px'
+  } else { img?.remove() }
+
+  // Position
+  const s = scale
+  const isRoot = _isRoot
+  el.style.left         = (node.x * s) + 'px'
+  el.style.top          = (node.y * s) + 'px'
+  el.style.fontSize     = Math.max(9, (isRoot ? 14 : 13) * s) + 'px'
+  el.style.padding      = `${Math.max(3, (isRoot ? 9 : 7) * s)}px ${Math.max(6, (isRoot ? 20 : 14) * s)}px`
+  el.style.borderRadius = Math.max(4, (isRoot ? 11 : 9) * s) + 'px'
+  el.style.borderWidth  = Math.max(1, 1.5 * s) + 'px'
+  el.style.borderLeftWidth = node.type && !isRoot ? Math.max(1.5, 3 * s) + 'px' : ''
+
+  el.className = 'mm-node'
+  if (isRoot)                  el.classList.add('is-root')
+  if (node.id === selectedId)  el.classList.add('is-selected')
+  if (node.topic === '' && isRoot && !hasChildren) el.classList.add('is-empty-root')
+  if (node.type) el.dataset.type = node.type
+  else delete el.dataset.type
+
+  for (const c of node.children || []) syncNodes(c)
+}
+
+// ════════════════════════════════════════════════════
+// §8  RENDER — EDGES
+// ════════════════════════════════════════════════════
+function scheduleEdges() {
+  cancelAnimationFrame(edgeRafId)
+  edgeRafId = requestAnimationFrame(renderEdges)
+}
+
+function renderEdges() {
+  edgesSvg.innerHTML = ''
+  for (const root of (tree.roots || [])) drawEdges(root, 2.5)
+  drawExtraEdges()
+  if (connectState) drawConnectGhost()
+}
+
+function drawEdges(node, w) {
+  if (node.collapsed) return
+  for (const child of node.children || []) {
+    const parentEl = document.getElementById('n-' + node.id)
+    const childEl  = document.getElementById('n-' + child.id)
+    const pw = parentEl ? parentEl.offsetWidth : 80
+    const cw = childEl  ? childEl.offsetWidth  : 80
+    const px = node.x  * scale, py = node.y  * scale
+    const cx = child.x * scale, cy = child.y * scale
+    const parentIsRoot = isRootNode(node.id)
+    let x1, x2
+    if (cx >= px) {
+      x1 = parentIsRoot ? px + pw / 2 : px + pw
+      x2 = cx
+    } else {
+      x1 = parentIsRoot ? px - pw / 2 : px
+      x2 = cx + cw
+    }
+    const mx = (x1 + x2) / 2
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    path.setAttribute('d', `M ${x1} ${py} C ${mx} ${py}, ${mx} ${cy}, ${x2} ${cy}`)
+    path.setAttribute('fill', 'none')
+    path.setAttribute('stroke', 'var(--edge-color)')
+    path.setAttribute('stroke-width', Math.max(1, w * scale))
+    path.setAttribute('stroke-linecap', 'round')
+    edgesSvg.appendChild(path)
+    drawEdges(child, Math.max(1.5, w - 0.6))
+  }
+}
+
+// Draw extra (cross-node) connections as dashed brand-colored curves
+function drawExtraEdges() {
+  for (const edge of (tree.extraEdges || [])) {
+    const fn = nodeMap.get(edge.from), tn = nodeMap.get(edge.to)
+    if (!fn || !tn) continue
+    const fel = document.getElementById('n-' + edge.from)
+    const tel = document.getElementById('n-' + edge.to)
+    const fw = fel ? fel.offsetWidth  : 80
+    const fh = fel ? fel.offsetHeight : 32
+    const tw = tel ? tel.offsetWidth  : 80
+    const th = tel ? tel.offsetHeight : 32
+    // Node center in canvas-scaled coords
+    const fcx = (fn.x + (isRootNode(fn.id) ? 0 : fw / 2)) * scale
+    const fcy = fn.y * scale
+    const tcx = (tn.x + (isRootNode(tn.id) ? 0 : tw / 2)) * scale
+    const tcy = tn.y * scale
+    // Pick nearest edge: compare dx vs dy to choose horizontal or vertical exit
+    const dx = tcx - fcx, dy = tcy - fcy
+    let x1, y1, x2, y2, c1x, c1y, c2x, c2y
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      // Horizontal exit: right or left edge
+      const fHalfW = (isRootNode(fn.id) ? fw / 2 : fw / 2) * scale
+      const tHalfW = (isRootNode(tn.id) ? tw / 2 : tw / 2) * scale
+      x1 = dx > 0 ? fcx + fHalfW : fcx - fHalfW; y1 = fcy
+      x2 = dx > 0 ? tcx - tHalfW : tcx + tHalfW; y2 = tcy
+      const bend = Math.abs(dx) * 0.45
+      c1x = x1 + (dx > 0 ? bend : -bend); c1y = y1
+      c2x = x2 + (dx > 0 ? -bend : bend); c2y = y2
+    } else {
+      // Vertical exit: bottom or top edge
+      const fHalfH = fh / 2 * scale
+      const tHalfH = th / 2 * scale
+      x1 = fcx; y1 = dy > 0 ? fcy + fHalfH : fcy - fHalfH
+      x2 = tcx; y2 = dy > 0 ? tcy - tHalfH : tcy + tHalfH
+      const bend = Math.abs(dy) * 0.45
+      c1x = x1; c1y = y1 + (dy > 0 ? bend : -bend)
+      c2x = x2; c2y = y2 + (dy > 0 ? -bend : bend)
+    }
+    const d = `M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`
+
+    // Wide transparent hit area for click-to-delete
+    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    hit.setAttribute('d', d)
+    hit.setAttribute('fill', 'none')
+    hit.setAttribute('stroke', 'transparent')
+    hit.setAttribute('stroke-width', 18)
+    hit.style.cursor = 'pointer'
+    hit.dataset.edgeId = edge.id
+    hit.addEventListener('click', e => {
+      e.stopPropagation()
+      tree.extraEdges = tree.extraEdges.filter(ex => ex.id !== edge.id)
+      scheduleEdges()
+      autoSave()
+      toast('连线已删除 ✕')
+    })
+    edgesSvg.appendChild(hit)
+
+    // Visible dashed path
+    const vis = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    vis.setAttribute('d', d)
+    vis.setAttribute('fill', 'none')
+    vis.setAttribute('stroke', 'var(--brand)')
+    vis.setAttribute('stroke-width', Math.max(1, 1.8 * scale))
+    vis.setAttribute('stroke-dasharray', `${6 * scale} ${4 * scale}`)
+    vis.setAttribute('stroke-linecap', 'round')
+    vis.setAttribute('opacity', '0.65')
+    vis.style.pointerEvents = 'none'
+    edgesSvg.appendChild(vis)
+  }
+}
+
+// Ghost line while drawing a new connection
+function drawConnectGhost() {
+  if (!connectState) return
+  const fn = connectState.fromNode
+  const fel = document.getElementById('n-' + fn.id)
+  const fw = fel ? fel.offsetWidth : 80
+  const x1 = (fn.x + fw / 2) * scale, y1 = fn.y * scale
+  const x2 = connectState.ghostX,      y2 = connectState.ghostY
+  const mx = (x1 + x2) / 2
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+  path.setAttribute('d', `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`)
+  path.setAttribute('fill', 'none')
+  path.setAttribute('stroke', 'var(--brand)')
+  path.setAttribute('stroke-width', Math.max(1, 1.8 * scale))
+  path.setAttribute('stroke-dasharray', `${5 * scale} ${3 * scale}`)
+  path.setAttribute('opacity', '0.5')
+  path.style.pointerEvents = 'none'
+  edgesSvg.appendChild(path)
+}
+
+// ════════════════════════════════════════════════════
+// §9  INPUT — MOUSE
+// ════════════════════════════════════════════════════
+function attachNodeEvents(el, node) {
+  el.addEventListener('mousedown', e => {
+    if (e.button !== 0) return
+    if (e.target.closest('.node-collapse-btn')) return
+    e.stopPropagation()
+    selectNode(node.id)
+    // Collect original positions of this node + all descendants (for subtree drag)
+    const subtreeOrig = []
+    function collectOrig(n) {
+      subtreeOrig.push({ node: n, origX: n.x, origY: n.y })
+      for (const c of n.children || []) collectOrig(c)
+    }
+    collectOrig(node)
+    dragState = {
+      node,
+      startX: e.clientX, startY: e.clientY,
+      origX: node.x,     origY: node.y,
+      subtreeOrig,
+      moved: false
+    }
+  })
+
+  el.addEventListener('click', e => {
+    e.stopPropagation()
+    if (_nodeClickMoved) return   // was a drag, not a click
+    startEdit(node)
+  })
+
+  el.addEventListener('contextmenu', e => {
+    e.preventDefault()
+    e.stopPropagation()
+    selectNode(node.id)
+    ctxNodeId = node.id
+    showCtxMenu(e.clientX, e.clientY)
+  })
+}
+
+// ── Selection ────────────────────────────────────────────────
+function selectNode(id) {
+  document.getElementById('n-' + selectedId)?.classList.remove('is-selected')
+  selectedId = id
+  if (id) document.getElementById('n-' + id)?.classList.add('is-selected')
+  // Refresh preview for the active root
+  updateMarkdown()
+}
+
+// ── Mouse: pan + node drag ───────────────────────────────────
+wrapper.addEventListener('mousedown', e => {
+  if (e.button !== 0) return
+  if (e.target.closest('.mm-node')) return
+  if (e.shiftKey) {
+    // Shift+drag = lasso selection
+    const rect = wrapper.getBoundingClientRect()
+    lassoState = {
+      startX: e.clientX - rect.left,
+      startY: e.clientY - rect.top,
+      curX: e.clientX - rect.left,
+      curY: e.clientY - rect.top,
+    }
+    document.querySelectorAll('.mm-node.is-lasso-selected').forEach(el => el.classList.remove('is-lasso-selected'))
+    const lassoEl = document.getElementById('lasso-rect')
+    if (lassoEl) lassoEl.style.display = 'block'
+    e.preventDefault()
+    return
+  }
+  panState = {
+    startX: e.clientX, startY: e.clientY,
+    ox: offset.x, oy: offset.y
+  }
+  wrapper.style.cursor = 'grabbing'
+})
+
+document.addEventListener('mousemove', e => {
+  if (connectState) {
+    const rect = wrapper.getBoundingClientRect()
+    connectState.ghostX = e.clientX - rect.left - offset.x
+    connectState.ghostY = e.clientY - rect.top  - offset.y
+    scheduleEdges()
+    return
+  }
+
+  if (lassoState) {
+    const rect = wrapper.getBoundingClientRect()
+    lassoState.curX = e.clientX - rect.left
+    lassoState.curY = e.clientY - rect.top
+    const lx = Math.min(lassoState.startX, lassoState.curX)
+    const ly = Math.min(lassoState.startY, lassoState.curY)
+    const lw = Math.abs(lassoState.curX - lassoState.startX)
+    const lh = Math.abs(lassoState.curY - lassoState.startY)
+    const lassoEl = document.getElementById('lasso-rect')
+    if (lassoEl) {
+      lassoEl.style.left   = lx + 'px'
+      lassoEl.style.top    = ly + 'px'
+      lassoEl.style.width  = lw + 'px'
+      lassoEl.style.height = lh + 'px'
+    }
+    // Highlight nodes inside lasso (canvas coords)
+    const cx1 = (lx - offset.x) / scale, cy1 = (ly - offset.y) / scale
+    const cx2 = cx1 + lw / scale,         cy2 = cy1 + lh / scale
+    document.querySelectorAll('.mm-node').forEach(el => {
+      const id = el.dataset.id
+      const nd = id && nodeMap.get(id)
+      if (!nd) return
+      const inLasso = nd.x >= cx1 && nd.x <= cx2 && nd.y >= cy1 && nd.y <= cy2
+      el.classList.toggle('is-lasso-selected', inLasso)
+    })
+    return
+  }
+
+  if (panState) {
+    offset.x = panState.ox + (e.clientX - panState.startX)
+    offset.y = panState.oy + (e.clientY - panState.startY)
+    applyTransform()
+    drawMinimap()
+  }
+
+  if (dragState) {
+    const dx = (e.clientX - dragState.startX) / scale
+    const dy = (e.clientY - dragState.startY) / scale
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) { dragState.moved = true; _nodeClickMoved = true }
+    if (dragState.moved) {
+      for (const d of dragState.subtreeOrig) {
+        d.node.x = d.origX + dx
+        d.node.y = d.origY + dy
+        const nel = document.getElementById('n-' + d.node.id)
+        if (nel) {
+          nel.style.left = d.node.x * scale + 'px'
+          nel.style.top  = d.node.y * scale + 'px'
+        }
+      }
+      const el = document.getElementById('n-' + dragState.node.id)
+      if (el) el.classList.add('is-dragging')
+      scheduleEdges()
+    }
+  }
+})
+
+document.addEventListener('mouseup', e => {
+  if (lassoState) {
+    lassoState = null
+    const lassoEl = document.getElementById('lasso-rect')
+    if (lassoEl) lassoEl.style.display = 'none'
+    // Keep .is-lasso-selected highlights until next click
+    return
+  }
+
+  if (connectState) {
+    const targetEl = document.elementFromPoint(e.clientX, e.clientY)?.closest('.mm-node')
+    if (targetEl && targetEl.dataset.id && targetEl.dataset.id !== connectState.fromId) {
+      const toId = targetEl.dataset.id
+      if (!tree.extraEdges) tree.extraEdges = []
+      const exists = tree.extraEdges.some(ex =>
+        (ex.from === connectState.fromId && ex.to === toId) ||
+        (ex.from === toId && ex.to === connectState.fromId)
+      )
+      if (!exists) {
+        tree.extraEdges.push({ id: genId(), from: connectState.fromId, to: toId })
+        autoSave()
+        toast('连线已创建')
+      }
+    }
+    connectState = null
+    scheduleEdges()
+    return
+  }
+
+  if (dragState) {
+    const el = document.getElementById('n-' + dragState.node.id)
+    el?.classList.remove('is-dragging')
+    if (dragState.moved) { autoSave(); drawMinimap() }
+    dragState = null
+    // Reset after a tick so click handler can read it
+    setTimeout(() => { _nodeClickMoved = false }, 0)
+  }
+  if (panState) {
+    panState = null
+    wrapper.style.cursor = ''
+  }
+})
+
+// Double-click empty canvas → add new root node
+wrapper.addEventListener('dblclick', e => {
+  if (e.target.closest('.mm-node')) return
+  if (e.target.closest('.preset-panel')) return
+  const rect = wrapper.getBoundingClientRect()
+  const cx = (e.clientX - rect.left - offset.x) / scale
+  const cy = (e.clientY - rect.top  - offset.y) / scale
+  addRootNode(cx, cy)
+})
+
+wrapper.addEventListener('wheel', e => {
+  e.preventDefault()
+  const rect = wrapper.getBoundingClientRect()
+  const mx = e.clientX - rect.left
+  const my = e.clientY - rect.top
+  const factor = e.deltaY < 0 ? 1.07 : 0.93
+  const newScale = Math.max(0.5, Math.min(3, scale * factor))
+  if (newScale !== scale) {
+    const ratio = newScale / scale
+    offset.x = mx - (mx - offset.x) * ratio
+    offset.y = my - (my - offset.y) * ratio
+    scale = newScale
+    applyTransform()
+    for (const root of (tree.roots || [])) syncNodes(root)
+    scheduleEdges()
+    drawMinimap()
+  }
+}, { passive: false })
+
+wrapper.addEventListener('click', e => {
+  if (!e.target.closest('.mm-node')) {
+    selectNode(null)
+    document.querySelectorAll('.mm-node.is-lasso-selected').forEach(el => el.classList.remove('is-lasso-selected'))
+  }
+})
+
+wrapper.addEventListener('contextmenu', e => {
+  if (!e.target.closest('.mm-node')) e.preventDefault()
+})
+
+// ── Inline edit ──────────────────────────────────────────────
+function startEdit(node) {
+  const el = document.getElementById('n-' + node.id)
+  if (!el) return
+  const textEl = el.querySelector('.node-text')
+  if (!textEl) return
+
+  textEl.contentEditable = 'true'
+  textEl.focus()
+  // Place cursor at end (append mode — don't overwrite existing text)
+  const range = document.createRange()
+  range.selectNodeContents(textEl)
+  range.collapse(false)
+  const sel = window.getSelection()
+  sel.removeAllRanges()
+  sel.addRange(range)
+
+  const _topicBefore = node.topic
+  const finish = () => {
+    const v = (textEl.innerText || '').trim()
+    if (v && v !== _topicBefore) pushHistory()
+    if (v) node.topic = v
+    textEl.contentEditable = 'false'
+    textEl.textContent = node.topic
+    scheduleEdges()
+    autoSave()
+  }
+
+  textEl.addEventListener('blur', finish, { once: true })
+  textEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); textEl.blur() }
+    if (e.key === 'Escape') { textEl.textContent = node.topic; textEl.contentEditable = 'false' }
+  })
+}
+
+// ════════════════════════════════════════════════════
+// §10  INPUT — KEYBOARD
+// ════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  const isMeta = e.metaKey || e.ctrlKey
+
+  // ⌘Z undo / ⌘⇧Z redo (before contentEditable check)
+  if (isMeta && e.key === 'z' && !e.shiftKey) {
+    if (document.activeElement?.contentEditable !== 'true') {
+      e.preventDefault(); undo(); return
+    }
+  }
+  if (isMeta && (e.key === 'Z' || (e.key === 'z' && e.shiftKey))) {
+    if (document.activeElement?.contentEditable !== 'true') {
+      e.preventDefault(); redo(); return
+    }
+  }
+
+  // ⌘T new tab
+  if (isMeta && e.key === 't') {
+    e.preventDefault()
+    newTab()
+    return
+  }
+  // ⌘W close current tab
+  if (isMeta && e.key === 'w') {
+    e.preventDefault()
+    closeTab(activeTabId)
+    return
+  }
+  // ⌘B toggle panel
+  if (isMeta && e.key === 'b') {
+    e.preventDefault()
+    togglePanel()
+    return
+  }
+  // ⌘G AI expand selected node
+  if (isMeta && e.key === 'g') {
+    e.preventDefault()
+    if (selectedId) { const n = nodeMap.get(selectedId); if (n) askClaude(n) }
+    return
+  }
+  // ⌘1–⌘9 switch tabs
+  if (isMeta && e.key >= '1' && e.key <= '9') {
+    e.preventDefault()
+    const idx = parseInt(e.key) - 1
+    if (tabs[idx]) switchTab(tabs[idx].id)
+    return
+  }
+
+  if (document.activeElement?.contentEditable === 'true') return
+  if (['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)) return
+
+  // Global shortcuts — work without node selection
+  if (e.key === 'f' || e.key === 'F') { e.preventDefault(); fitView(); return }
+  if (e.key === 'l' || e.key === 'L') { e.preventDefault(); resetLayout(); return }
+
+  if (!selectedId) return
+  const node = nodeMap.get(selectedId)
+  if (!node) return
+
+  if (e.key === 'Tab') {
+    e.preventDefault()
+    addChild(node)
+  } else if (e.key === 'Enter') {
+    e.preventDefault()
+    const parent = parentMap.get(selectedId)
+    if (parent) addSibling(node, parent)
+    else addChild(node)
+  } else if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (isRootNode(selectedId) && tree.roots && tree.roots.length <= 1) return
+    e.preventDefault()
+    deleteNode(node)
+  } else if (e.key === 'F2') {
+    e.preventDefault()
+    startEdit(node)
+  }
+})
+
+// ════════════════════════════════════════════════════
+// §11  NODE OPERATIONS
+// ════════════════════════════════════════════════════
+function genId() { return 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2,5) }
+
+// ── Preset panel (inspiration for empty root nodes) ──────────
+let _presetTargetNode = null
+
+function showPresetPanel(node, anchorEl) {
+  _presetTargetNode = node
+  const panel = document.getElementById('preset-panel')
+  if (!panel) return
+
+  panel.innerHTML = `<div class="preset-title">选择一个出发点</div>`
+
+  // Skill type presets
+  SKILL_PRESETS.forEach(p => {
+    const item = document.createElement('div')
+    item.className = 'preset-item'
+    item.textContent = p.label
+    item.addEventListener('click', () => {
+      node.topic = p.topic
+      hidePresetPanel()
+      buildMaps()
+      renderAll()
+      autoSave()
+      updateMarkdown()
+      setTimeout(() => startEdit(node), 40)
+    })
+    panel.appendChild(item)
+  })
+
+  // Position near anchor
+  panel.classList.add('open')
+  const rect = anchorEl.getBoundingClientRect()
+  const wRect = wrapper.getBoundingClientRect()
+  let left = rect.left - wRect.left
+  let top  = rect.bottom - wRect.top + 6
+  if (left + 210 > wRect.width)  left = wRect.width - 215
+  if (top  + 400 > wRect.height) top  = rect.top - wRect.top - 405
+  panel.style.left = left + 'px'
+  panel.style.top  = top  + 'px'
+}
+
+function hidePresetPanel() {
+  document.getElementById('preset-panel')?.classList.remove('open')
+  _presetTargetNode = null
+}
+
+// Close preset panel on click outside
+document.addEventListener('click', e => {
+  const panel = document.getElementById('preset-panel')
+  if (panel && panel.classList.contains('open') && !panel.contains(e.target) && !e.target.closest('.inspo-btn')) {
+    hidePresetPanel()
+  }
+})
+
+function addChild(parent) {
+  pushHistory()
+  const id = genId()
+  const lastChild = parent.children?.slice(-1)[0]
+  const newNode = {
+    id,
+    topic: '新节点',
+    x: parent.x + 230,
+    y: lastChild ? lastChild.y + 110 : parent.y,
+    children: []
+  }
+  if (!parent.children) parent.children = []
+  parent.children.push(newNode)
+  renderAll()
+  selectNode(id)
+  autoSave()
+  setTimeout(() => startEdit(newNode), 40)
+}
+
+function addSibling(node, parent) {
+  pushHistory()
+  const id = genId()
+  const newNode = { id, topic: '新节点', x: node.x, y: node.y + 110, children: [] }
+  const idx = parent.children.indexOf(node)
+  parent.children.splice(idx + 1, 0, newNode)
+  renderAll()
+  selectNode(id)
+  autoSave()
+  setTimeout(() => startEdit(newNode), 40)
+}
+
+function deleteNode(node) {
+  pushHistory()
+  const parent = parentMap.get(node.id)
+  const ids = []
+  function collect(n) { ids.push(n.id); (n.children||[]).forEach(collect) }
+  collect(node)
+
+  if (!parent) {
+    // Deleting a root node — only if there's more than 1 root
+    if (tree.roots && tree.roots.length <= 1) return
+    tree.roots = tree.roots.filter(r => r.id !== node.id)
+    // Remove any extra edges connected to deleted nodes
+    tree.extraEdges = (tree.extraEdges || []).filter(ex => !ids.includes(ex.from) && !ids.includes(ex.to))
+    ids.forEach(id => { document.getElementById('n-' + id)?.remove(); knownIds.delete(id) })
+    selectNode(tree.roots[0]?.id || null)
+    buildMaps()
+    scheduleEdges()
+    autoSave()
+    return
+  }
+
+  parent.children = parent.children.filter(c => c.id !== node.id)
+  tree.extraEdges = (tree.extraEdges || []).filter(ex => !ids.includes(ex.from) && !ids.includes(ex.to))
+  ids.forEach(id => { document.getElementById('n-' + id)?.remove(); knownIds.delete(id) })
+  selectNode(parent.id)
+  buildMaps()
+  scheduleEdges()
+  autoSave()
+}
+
+// LLM collaboration: ⌘G expands a node with AI-generated typed children
+const AI_MODEL = 'claude-opus-4-5'
+
+// Pending node for AI expansion after key entry
+let _aiPendingNode = null
+
+async function askClaude(node) {
+  const apiKey = localStorage.getItem('anthropic-api-key')
+  if (!apiKey) {
+    _aiPendingNode = node
+    document.getElementById('ai-setup-key').value = ''
+    openModal('overlay-ai-setup')
+    return
+  }
+
+  const el = document.getElementById('n-' + node.id)
+  el?.classList.add('ai-loading')
+
+  const nodeTypeLabel = node.type ? `（类型：${NODE_TYPES[node.type]?.label || node.type}）` : ''
+  const activeRoot    = getActiveRoot()
+  const skillContext  = toSkillMd(activeRoot || node)
+  const prompt =
+`你正在帮助用户设计一个 Claude AI Skill（SKILL.md 可复用执行脚本）。
+当前 Skill 名称：${activeRoot?.topic || '未命名'}
+当前 Skill 结构：
+${skillContext}
+---
+用户选中了节点"${node.topic}"${nodeTypeLabel}。
+请为这个节点生成 3–6 个相关的子节点，内容契合 SKILL.md 规范（触发条件、执行步骤、工具、注意事项等）。
+只返回 JSON 数组，不要有任何其他文字，格式：
+[{"topic":"...", "type":"trigger|step|tool|note|example|description"}]`
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: AI_MODEL,
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }],
+      })
+    })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error?.message || `HTTP ${res.status}`)
+    }
+
+    const data  = await res.json()
+    const text  = (data.content?.[0]?.text || '').trim()
+    const match = text.match(/\[[\s\S]*\]/)
+    if (!match) throw new Error('返回格式非 JSON 数组')
+
+    const suggestions = JSON.parse(match[0])
+    if (!Array.isArray(suggestions) || !suggestions.length) throw new Error('未返回有效节点')
+
+    if (!node.children) node.children = []
+    suggestions.forEach(s => {
+      if (!s?.topic) return
+      node.children.push({
+        id: genId(),
+        topic: String(s.topic).slice(0, 120),
+        type: NODE_TYPES[s.type] ? s.type : undefined,
+        x: node.x + 230,
+        y: node.y,
+        children: [],
+      })
+    })
+
+    buildMaps()
+    renderAll()
+    resetLayout()
+    autoSave()
+    toast(`✦ AI 生成了 ${suggestions.length} 个节点`)
+  } catch (err) {
+    toast('AI 生成失败：' + err.message, true)
+  } finally {
+    el?.classList.remove('ai-loading')
+  }
+}
+
+// ════════════════════════════════════════════════════
+// §12  CONTEXT MENU
+// ════════════════════════════════════════════════════
+function showCtxMenu(x, y) {
+  const vw = window.innerWidth, vh = window.innerHeight
+  const mw = 180, mh = 220
+  ctxMenu.style.left = Math.min(x, vw - mw) + 'px'
+  ctxMenu.style.top  = Math.min(y, vh - mh) + 'px'
+  ctxMenu.classList.add('open')
+  const _ctxIsRoot = isRootNode(ctxNodeId)
+  // Allow deleting roots if there's more than one; hide sibling on any root
+  ctxMenu.querySelector('[data-action="delete"]').style.display    = (_ctxIsRoot && tree.roots?.length <= 1) ? 'none' : ''
+  ctxMenu.querySelector('[data-action="add-sibling"]').style.display = _ctxIsRoot ? 'none' : ''
+}
+
+function hideCtxMenu() { ctxMenu.classList.remove('open') }
+
+document.addEventListener('click', e => { if (!e.target.closest('#ctx-menu')) hideCtxMenu() })
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideCtxMenu() })
+
+ctxMenu.addEventListener('click', e => {
+  const item = e.target.closest('[data-action]')
+  if (!item || !ctxNodeId) return
+  const node = nodeMap.get(ctxNodeId)
+  hideCtxMenu()
+  if (!node) return
+  const action = item.dataset.action
+  if (action === 'ai-expand')   askClaude(node)
+  else if (action === 'add-child')   addChild(node)
+  else if (action === 'add-sibling') addSibling(node, parentMap.get(ctxNodeId))
+  else if (action === 'edit')   startEdit(node)
+  else if (action === 'image')  openModal('overlay-image')
+  else if (action === 'delete') deleteNode(node)
+  else if (action && action.startsWith('set-type-')) {
+    const t = action.replace('set-type-', '')
+    node.type = t === 'none' ? undefined : t
+    renderAll()
+    autoSave()
+  }
+})
+
+// ════════════════════════════════════════════════════
+// §13  THEME & TOOLBAR BUTTONS
+// ════════════════════════════════════════════════════
+// ── Dark mode ────────────────────────────────────────────────
+function applyTheme(dark) {
+  htmlEl.setAttribute('data-theme', dark ? 'dark' : 'light')
+  document.getElementById('icon-moon').style.display = dark ? 'none' : ''
+  document.getElementById('icon-sun').style.display  = dark ? ''     : 'none'
+  localStorage.setItem('mindmap-theme', dark ? 'dark' : 'light')
+}
+
+applyTheme(localStorage.getItem('mindmap-theme') === 'dark')
+document.getElementById('btn-fitview').addEventListener('click', fitView)
+document.getElementById('btn-layout').addEventListener('click', resetLayout)
+
+document.getElementById('btn-dark').addEventListener('click', () => {
+  applyTheme(htmlEl.getAttribute('data-theme') !== 'dark')
+  drawMinimap()
+})
+
+// ════════════════════════════════════════════════════
+// §14  MARKDOWN / SKILL.MD
+// ════════════════════════════════════════════════════
+function toMarkdown(node, depth = 0) {
+  const prefix = depth === 0 ? '# ' : '  '.repeat(depth - 1) + '- '
+  let md = prefix + node.topic + '\n'
+  for (const c of node.children || []) md += toMarkdown(c, depth + 1)
+  return md
+}
+
+// Convert node tree to SKILL.md format
+function toSkillMd(root) {
+  // Collect all nodes by type (depth-first, skip root)
+  const byType = { trigger: [], step: [], tool: [], description: [], note: [], example: [] }
+  function collect(node) {
+    if (!isRootNode(node.id) && node.type && byType[node.type]) {
+      byType[node.type].push(node)
+    }
+    for (const c of node.children || []) collect(c)
+  }
+  collect(root)
+
+  // Derive skill name slug (keep Chinese characters)
+  const rawName = root.topic || 'my-skill'
+  const skillSlug = rawName
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\u4e00-\u9fa5-]/g, '')
+    || 'my-skill'
+
+  let md = `---\n`
+  md += `name: ${skillSlug}\n`
+  md += `version: 1.0.0\n`
+  md += `description: |\n`
+
+  const descLines = byType.description.length
+    ? byType.description.map(n => `  ${n.topic}`)
+    : [`  ${rawName}`]
+  md += descLines.join('\n') + '\n'
+
+  if (byType.trigger.length) {
+    byType.trigger.forEach(t => { md += `  当用户说 "${t.topic}" 时触发。\n` })
+  }
+
+  if (byType.tool.length) {
+    md += `allowed-tools:\n`
+    byType.tool.forEach(t => { md += `  - ${t.topic}\n` })
+  }
+
+  md += `---\n\n`
+  md += `# /${skillSlug}\n\n`
+
+  if (byType.step.length) {
+    md += `## 执行步骤\n\n`
+    byType.step.forEach((s, i) => {
+      md += `${i + 1}. ${s.topic}\n`
+      for (const sub of s.children || []) md += `   - ${sub.topic}\n`
+    })
+    md += '\n'
+  }
+
+  if (byType.note.length) {
+    md += `## 注意事项\n\n`
+    byType.note.forEach(n => { md += `- ${n.topic}\n` })
+    md += '\n'
+  }
+
+  if (byType.example.length) {
+    md += `## 使用示例\n\n`
+    byType.example.forEach(ex => { md += `- ${ex.topic}\n` })
+    md += '\n'
+  }
+
+  return md
+}
+
+function updateMarkdown() {
+  const root = getActiveRoot()
+  document.getElementById('markdown-output').value = root ? toSkillMd(root) : ''
+  updateLint()
+  updateEmptyGuide()
+}
+
+// ── Skill quality lint ────────────────────────────────────────
+function lintSkill(nodeData) {
+  const byType = { trigger: 0, step: 0, tool: 0 }
+  let totalNodes = 0
+  function scan(node) {
+    totalNodes++
+    if (!isRootNode(node.id) && node.type && byType[node.type] !== undefined) byType[node.type]++
+    for (const c of node.children || []) scan(c)
+  }
+  scan(nodeData)
+
+  const warnings = []
+  const defaultNames = ['思维导图', 'My Skill', '未命名']
+  if (!nodeData.topic?.trim() || defaultNames.includes(nodeData.topic.trim())) {
+    warnings.push({ level: 'warn', text: '技能名称未设置 — 双击根节点修改' })
+  }
+  if (byType.trigger === 0) {
+    warnings.push({ level: 'warn', text: '缺少触发条件 — 什么情况下该使用这个 skill？' })
+  }
+  if (byType.step === 0) {
+    warnings.push({ level: 'error', text: '缺少执行步骤 — skill 没有任何步骤节点' })
+  } else if (byType.step === 1) {
+    warnings.push({ level: 'warn', text: '只有 1 个执行步骤，建议至少 2 个' })
+  }
+  if (byType.tool === 0 && byType.step > 0) {
+    warnings.push({ level: 'warn', text: '未指定工具 — 若 skill 需要 Claude 调用工具请添加工具节点' })
+  }
+  if (totalNodes <= 3) {
+    warnings.push({ level: 'warn', text: 'Skill 内容较少 — 选中节点按 ⌘G 让 AI 帮你扩展' })
+  }
+  return warnings
+}
+
+function updateLint() {
+  const panel = document.getElementById('lint-panel')
+  if (!panel) return
+  const root = getActiveRoot()
+  const warnings = root ? lintSkill(root) : []
+  panel.innerHTML = warnings.map(w =>
+    `<div class="lint-item"><span class="lint-dot ${w.level}"></span><span>${w.text}</span></div>`
+  ).join('')
+}
+
+function computeSkillScore(nodeData) {
+  const warnings = lintSkill(nodeData)
+  const errors = warnings.filter(w => w.level === 'error').length
+  const warns  = warnings.filter(w => w.level === 'warn').length
+  return Math.max(0, Math.min(10, 10 - errors * 3 - warns * 1))
+}
+
+function countNodes(node) {
+  let n = 1
+  for (const c of node.children || []) n += countNodes(c)
+  return n
+}
+
+function updateEmptyGuide() {
+  // Empty guide disabled
+}
+
+// Parse Markdown / SKILL.md text into a node tree.
+// Supports: YAML frontmatter name extraction, auto-type from section headings,
+// heading hierarchy (##/###), ordered and unordered list items.
+function parseMarkdownToTree(md) {
+  const lines = md.split('\n').map(l => l.trimEnd())
+  const root  = { id: 'root', topic: '思维导图', x: CS, y: CS, children: [] }
+  const stack = [{ node: root, depth: -1 }]
+
+  let headingDepth    = 0
+  let inCodeBlock     = false
+  let inFrontmatter   = false
+  let frontmatterDone = false
+  let sectionType     = null  // type inferred from current section heading
+
+  // Section heading keyword → node type
+  const SECTION_TYPES = {
+    '触发条件': 'trigger', '触发': 'trigger', 'trigger': 'trigger', 'triggers': 'trigger',
+    '执行步骤': 'step',    '步骤': 'step',    'step': 'step',       'steps': 'step',
+    '使用工具': 'tool',    '工具': 'tool',    'tool': 'tool',       'tools': 'tool', 'allowed-tools': 'tool',
+    '技能描述': 'description', '描述': 'description', 'description': 'description',
+    '注意事项': 'note',    '注意': 'note',    'note': 'note',       'notes': 'note',
+    '使用示例': 'example', '示例': 'example', 'example': 'example', 'examples': 'example',
+  }
+
+  function push(topic, depth, type) {
+    const node = { id: genId(), topic, children: [] }
+    if (type) node.type = type
+    while (stack.length > 1 && stack[stack.length - 1].depth >= depth) stack.pop()
+    stack[stack.length - 1].node.children.push(node)
+    stack.push({ node, depth })
+  }
+
+  for (const line of lines) {
+    // YAML frontmatter: first `---` opens it, second `---` closes it
+    if (!frontmatterDone && line.match(/^---\s*$/)) {
+      if (!inFrontmatter) { inFrontmatter = true; continue }
+      else                { inFrontmatter = false; frontmatterDone = true; continue }
+    }
+    if (inFrontmatter) {
+      // Extract skill name from frontmatter
+      const nm = line.match(/^name:\s*(.+)/)
+      if (nm) root.topic = nm[1].trim()
+      continue  // skip all other frontmatter lines
+    }
+
+    if (line.match(/^```/)) { inCodeBlock = !inCodeBlock; continue }
+    if (inCodeBlock)  continue
+    if (!line.trim()) continue
+
+    // Headings: # → root, ## → depth 1, ### → depth 2, etc.
+    const hm = line.match(/^(#{1,6})\s+(.+)/)
+    if (hm) {
+      const d     = hm[1].length - 1
+      const topic = hm[2].trim().replace(/^\//, '')  // strip leading / from skill names like # /my-skill
+      if (d === 0) {
+        root.topic  = topic
+        stack.length = 1
+        headingDepth = 0
+        sectionType  = null
+      } else {
+        const key   = topic.toLowerCase()
+        sectionType = SECTION_TYPES[key] || SECTION_TYPES[topic] || null
+        push(topic, d)  // section heading itself has no type
+        headingDepth = d
+      }
+      continue
+    }
+
+    // Unordered list items — inherit sectionType from current heading
+    const ulm = line.match(/^(\s*)[-*]\s+(.+)/)
+    if (ulm) {
+      const topic = ulm[2].trim()
+      if (topic) push(topic, headingDepth + 1 + Math.floor(ulm[1].length / 2), sectionType)
+      continue
+    }
+
+    // Ordered list items — inherit sectionType from current heading
+    const olm = line.match(/^(\s*)\d+\.\s+(.+)/)
+    if (olm) {
+      const topic = olm[2].trim()
+      if (topic) push(topic, headingDepth + 1 + Math.floor(olm[1].length / 2), sectionType)
+    }
+  }
+
+  return root
+}
+
+// ════════════════════════════════════════════════════
+// §15  PERSISTENCE
+// ════════════════════════════════════════════════════
+function autoSave() {
+  // Save all tabs
+  localStorage.setItem('mindmap-tabs', JSON.stringify({ activeTabId, tabs }))
+  const t = new Date()
+  const ts = t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0')
+  document.getElementById('save-indicator').textContent = `· 已自动保存 ${ts}`
+  updateMarkdown()
+}
+
+// ════════════════════════════════════════════════════
+// §16  TABS
+// ════════════════════════════════════════════════════
+function genTabId() { return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2,5) }
+
+function getDefaultTree() {
+  return {
+    roots: [
+      { id: genId(), topic: '', x: CS, y: CS, children: [] }
+    ],
+    extraEdges: []
+  }
+}
+
+function getSkillTemplate() {
+  const g = () => genId()
+  const rootId = g()
+  return {
+    roots: [{
+      id: rootId, topic: '', x: CS, y: CS,
+      children: []
+    }],
+    extraEdges: []
+  }
+}
+
+function renderTabBar() {
+  const bar = document.getElementById('tab-bar')
+  bar.innerHTML = ''
+  for (const tab of tabs) {
+    const btn = document.createElement('button')
+    btn.className = 'tab' + (tab.id === activeTabId ? ' active' : '')
+    btn.dataset.id = tab.id
+
+    const nameSpan = document.createElement('span')
+    nameSpan.className = 'tab-name'
+    nameSpan.textContent = tab.name
+
+    const closeBtn = document.createElement('button')
+    closeBtn.className = 'tab-close'
+    closeBtn.textContent = '×'
+    closeBtn.title = '关闭标签'
+    closeBtn.addEventListener('mousedown', e => e.stopPropagation())
+    closeBtn.addEventListener('click', e => {
+      e.stopPropagation()
+      closeTab(tab.id)
+    })
+
+    btn.appendChild(nameSpan)
+    btn.appendChild(closeBtn)
+
+    btn.addEventListener('click', () => { if (tab.id !== activeTabId) switchTab(tab.id) })
+    btn.addEventListener('dblclick', () => renameTab(tab.id, nameSpan))
+
+    bar.appendChild(btn)
+  }
+
+  const addBtn = document.createElement('button')
+  addBtn.className = 'tab-add'
+  addBtn.id = 'btn-new-tab'
+  addBtn.textContent = '+'
+  addBtn.title = '新建标签 (⌘T)'
+  addBtn.addEventListener('click', newTab)
+  bar.appendChild(addBtn)
+}
+
+function switchTab(id) {
+  activeTabId = id
+  const tab = tabs.find(t => t.id === id)
+  if (!tab) return
+  if (tab.tree) tab.tree = migrateTreeFormat(tab.tree)
+  tree = tab.tree
+
+  // Clear canvas
+  clearCanvas()
+  selectedId = null
+
+  renderTabBar()
+  renderAll()
+  fitView()
+  updateMarkdown()
+}
+
+function newTab() {
+  const id = genTabId()
+  const newTree = getDefaultTree()
+  tabs.push({ id, name: '新画布', tree: newTree })
+  switchTab(id)
+  autoSave()
+}
+
+function closeTab(id) {
+  if (tabs.length <= 1) return
+  const idx = tabs.findIndex(t => t.id === id)
+  if (idx === -1) return
+  // Switch to adjacent tab first
+  if (id === activeTabId) {
+    const nextIdx = idx > 0 ? idx - 1 : 1
+    switchTab(tabs[nextIdx].id)
+  }
+  tabs = tabs.filter(t => t.id !== id)
+  renderTabBar()
+  autoSave()
+}
+
+function renameTab(id, nameSpan) {
+  const tab = tabs.find(t => t.id === id)
+  if (!tab) return
+  const input = document.createElement('input')
+  input.value = tab.name
+  input.style.cssText = 'border:none;background:transparent;font:inherit;color:inherit;outline:none;width:80px;'
+  nameSpan.replaceWith(input)
+  input.focus()
+  input.select()
+  const finish = () => {
+    const v = input.value.trim() || tab.name
+    tab.name = v
+    const span = document.createElement('span')
+    span.className = 'tab-name'
+    span.textContent = v
+    input.replaceWith(span)
+    autoSave()
+  }
+  input.addEventListener('blur', finish, { once: true })
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur() }
+    if (e.key === 'Escape') { input.value = tab.name; input.blur() }
+  })
+}
+
+// ── Panel toggle ─────────────────────────────────────────────
+function togglePanel() {
+  const panel = document.querySelector('.preview-panel')
+  const divider = document.getElementById('divider')
+  const toggleBtn = document.getElementById('divider-toggle')
+  const isPanelVisible = panel.style.display !== 'none'
+  if (isPanelVisible) {
+    panel.style.display = 'none'
+    if (toggleBtn) toggleBtn.textContent = '›'
+  } else {
+    panel.style.display = ''
+    if (toggleBtn) toggleBtn.textContent = '‹'
+  }
+  setTimeout(fitView, 50)
+}
+
+document.getElementById('divider-toggle').addEventListener('click', e => {
+  e.stopPropagation()   // don't start divider drag
+  togglePanel()
+})
+
+// ── Image insert ─────────────────────────────────────────────
+document.getElementById('btn-image').addEventListener('click', () => openModal('overlay-image'))
+
+document.getElementById('btn-image-ok').addEventListener('click', () => {
+  const url    = document.getElementById('img-url').value.trim()
+  const width  = parseInt(document.getElementById('img-width').value)  || 200
+  const height = parseInt(document.getElementById('img-height').value) || 150
+  if (!url) { toast('请输入图片 URL', true); return }
+  if (!selectedId) { toast('请先选中一个节点', true); return }
+  const node = nodeMap.get(selectedId)
+  if (!node) { toast('请先选中一个节点', true); return }
+  node.image = { url, width, height }
+  renderAll()
+  closeModal('overlay-image')
+  document.getElementById('img-url').value = ''
+  autoSave()
+  toast('图片已插入')
+})
+document.getElementById('btn-image-cancel').addEventListener('click', () => closeModal('overlay-image'))
+
+// ════════════════════════════════════════════════════
+// §17  IMPORT / EXPORT / GITHUB
+// ════════════════════════════════════════════════════
+document.getElementById('btn-copy').addEventListener('click', async () => {
+  await navigator.clipboard.writeText(toSkillMd(getActiveRoot() || tree.roots[0]))
+  const btn = document.getElementById('btn-copy')
+  const orig = btn.innerHTML
+  btn.textContent = '已复制 ✓'
+  btn.classList.add('btn-success')
+  setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('btn-success') }, 1600)
+})
+
+document.getElementById('btn-export-md').addEventListener('click', () => {
+  const root = getActiveRoot() || tree.roots[0]
+  const skillName = (root?.topic || 'skill').toLowerCase().replace(/\s+/g,'-').replace(/[^\w\u4e00-\u9fa5-]/g,'') || 'skill'
+  download(toSkillMd(root), skillName + '.md', 'text/markdown;charset=utf-8')
+})
+
+document.getElementById('btn-save-json').addEventListener('click', () => {
+  download(JSON.stringify(tree, null, 2), 'mindmap.json', 'application/json')
+  toast('JSON 已保存到本地')
+})
+
+// Import button → open modal
+document.getElementById('btn-import').addEventListener('click', () => {
+  openModal('overlay-import')
+})
+
+// Import modal tabs
+document.querySelectorAll('.modal-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const paneId = btn.dataset.pane
+    document.querySelectorAll('.modal-tab').forEach(b => b.classList.remove('active'))
+    document.querySelectorAll('.modal-pane').forEach(p => p.classList.remove('active'))
+    btn.classList.add('active')
+    document.getElementById(paneId).classList.add('active')
+  })
+})
+
+// Import file input (inside modal)
+document.getElementById('import-input').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return
+  const reader = new FileReader()
+  reader.onload = ev => {
+    const text = ev.target.result
+    try {
+      if (file.name.endsWith('.md')) {
+        const newRoot = parseMarkdownToTree(text)
+        autoLayout(newRoot, CS, CS)
+        tree.roots = [newRoot]
+        const tab = tabs.find(t => t.id === activeTabId)
+        if (tab) tab.tree = tree
+        clearCanvas()
+        renderAll()
+        fitView()
+        autoSave()
+        toast('Markdown 导入成功')
+      } else {
+        let data = JSON.parse(text)
+        data = migrateTreeFormat(data)
+        tree = data
+        const tab = tabs.find(t => t.id === activeTabId)
+        if (tab) tab.tree = tree
+        for (const r of tree.roots) autoLayout(r, r.x || CS, r.y || CS)
+        clearCanvas()
+        renderAll()
+        fitView()
+        autoSave()
+        toast('JSON 导入成功')
+      }
+      closeModal('overlay-import')
+    } catch { toast('格式错误，请选择有效的文件', true) }
+  }
+  reader.readAsText(file)
+  e.target.value = ''
+})
+
+// Import URL button
+document.getElementById('btn-import-ok').addEventListener('click', async () => {
+  // Check which pane is active
+  const isUrlPane = document.getElementById('pane-url').classList.contains('active')
+  if (isUrlPane) {
+    let url = document.getElementById('import-url').value.trim()
+    if (!url) { toast('请输入 URL', true); return }
+    // Convert GitHub blob URL to raw
+    const ghMatch = url.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)$/)
+    if (ghMatch) {
+      url = `https://raw.githubusercontent.com/${ghMatch[1]}/${ghMatch[2]}/${ghMatch[3]}/${ghMatch[4]}`
+    }
+    const btn = document.getElementById('btn-import-ok')
+    const origText = btn.textContent
+    btn.textContent = '加载中…'
+    btn.disabled = true
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const text = await res.text()
+      const newRoot = parseMarkdownToTree(text)
+      autoLayout(newRoot, CS, CS)
+      tree.roots = [newRoot]
+      const tab = tabs.find(t => t.id === activeTabId)
+      if (tab) tab.tree = tree
+      clearCanvas()
+      renderAll()
+      fitView()
+      autoSave()
+      toast('链接导入成功')
+      closeModal('overlay-import')
+      document.getElementById('import-url').value = ''
+    } catch(err) {
+      toast('获取失败: ' + err.message, true)
+    } finally {
+      btn.textContent = origText
+      btn.disabled = false
+    }
+  } else {
+    // File pane — trigger the file input click
+    document.getElementById('import-input').click()
+  }
+})
+
+document.getElementById('btn-import-cancel').addEventListener('click', () => closeModal('overlay-import'))
+
+function download(content, filename, type) {
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([content], { type })),
+    download: filename
+  })
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
+
+// ── Install (File System Access API) ─────────────────────────
+async function installSkill() {
+  const root = getActiveRoot() || tree.roots[0]
+  const md = toSkillMd(root)
+  const skillName = (root?.topic || 'my-skill')
+    .toLowerCase().replace(/\s+/g, '-').replace(/[^\w\u4e00-\u9fa5-]/g, '') || 'my-skill'
+  if (window.showSaveFilePicker) {
+    try {
+      const fh = await window.showSaveFilePicker({
+        suggestedName: 'SKILL.md',
+        types: [{ description: 'SKILL.md Markdown', accept: { 'text/plain': ['.md'] } }],
+      })
+      const writable = await fh.createWritable()
+      await writable.write(md)
+      await writable.close()
+      toast(`✓ 已保存到 ${fh.name}`)
+    } catch (e) {
+      if (e.name !== 'AbortError') toast('保存失败：' + e.message, true)
+    }
+  } else {
+    // Fallback: browser download
+    download(md, 'SKILL.md', 'text/plain')
+    toast(`✓ 已下载 SKILL.md（将文件移至 ~/.claude/skills/${skillName}/）`)
+  }
+}
+
+document.getElementById('btn-install').addEventListener('click', installSkill)
+
+// ── AI Setup Modal ────────────────────────────────────────────
+document.getElementById('btn-ai-setup-cancel').addEventListener('click', () => {
+  _aiPendingNode = null
+  closeModal('overlay-ai-setup')
+})
+document.getElementById('btn-ai-setup-save').addEventListener('click', () => {
+  const key = document.getElementById('ai-setup-key').value.trim()
+  if (!key) { toast('请输入 API Key', true); return }
+  localStorage.setItem('anthropic-api-key', key)
+  // Also sync into settings modal field if open
+  const settingsKey = document.getElementById('anthropic-key')
+  if (settingsKey) settingsKey.value = key
+  closeModal('overlay-ai-setup')
+  toast('API Key 已保存 ✓')
+  if (_aiPendingNode) {
+    const node = _aiPendingNode
+    _aiPendingNode = null
+    askClaude(node)
+  }
+})
+
+// ── GitHub ───────────────────────────────────────────────────
+function loadGhConfig() {
+  const c = JSON.parse(localStorage.getItem('gh-config') || '{}')
+  document.getElementById('gh-token').value  = c.token  || ''
+  document.getElementById('gh-owner').value  = c.owner  || ''
+  document.getElementById('gh-repo').value   = c.repo   || ''
+  document.getElementById('gh-path').value   = c.path   || 'mindmap.md'
+  document.getElementById('gh-branch').value = c.branch || 'main'
+  document.getElementById('anthropic-key').value = localStorage.getItem('anthropic-api-key') || ''
+}
+
+document.getElementById('btn-settings').addEventListener('click', () => { loadGhConfig(); openModal('overlay-settings') })
+document.getElementById('btn-settings-cancel').addEventListener('click', () => closeModal('overlay-settings'))
+document.getElementById('btn-settings-save').addEventListener('click', () => {
+  const c = {
+    token:  document.getElementById('gh-token').value.trim(),
+    owner:  document.getElementById('gh-owner').value.trim(),
+    repo:   document.getElementById('gh-repo').value.trim(),
+    path:   document.getElementById('gh-path').value.trim()   || 'mindmap.md',
+    branch: document.getElementById('gh-branch').value.trim() || 'main',
+  }
+  localStorage.setItem('gh-config', JSON.stringify(c))
+  const ak = document.getElementById('anthropic-key').value.trim()
+  if (ak) localStorage.setItem('anthropic-api-key', ak)
+  else    localStorage.removeItem('anthropic-api-key')
+  closeModal('overlay-settings')
+  toast('设置已保存')
+})
+
+document.getElementById('btn-github').addEventListener('click', async () => {
+  const c = JSON.parse(localStorage.getItem('gh-config') || '{}')
+  if (!c.token || !c.owner || !c.repo) { loadGhConfig(); openModal('overlay-settings'); toast('请先填写 GitHub 配置', true); return }
+
+  const btn = document.getElementById('btn-github')
+  const origHTML = btn.innerHTML
+  btn.disabled = true; btn.textContent = '推送中…'
+
+  const activeRoot = getActiveRoot()
+  const markdown = toSkillMd(activeRoot || tree.roots[0])
+  const autoPath = c.path || ((activeRoot?.topic || 'skill').toLowerCase().replace(/\s+/g,'-').replace(/[^\w\u4e00-\u9fa5-]/g,'') || 'skill') + '.md'
+  const apiUrl = `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${autoPath}`
+  const headers = { Authorization: `token ${c.token}`, Accept: 'application/vnd.github.v3+json', 'Content-Type': 'application/json' }
+
+  try {
+    let sha = null
+    const getRes = await fetch(`${apiUrl}?ref=${c.branch}`, { headers })
+    if (getRes.ok) sha = (await getRes.json()).sha
+    const putRes = await fetch(apiUrl, {
+      method: 'PUT', headers,
+      body: JSON.stringify({
+        message: `Update skill ${new Date().toLocaleString('zh-CN')}`,
+        content: btoa(unescape(encodeURIComponent(markdown))),
+        branch: c.branch, ...(sha ? { sha } : {})
+      })
+    })
+    if (putRes.ok) {
+      toast('已推送到 GitHub ✓')
+      btn.classList.add('btn-success')
+      setTimeout(() => btn.classList.remove('btn-success'), 2000)
+    } else {
+      const err = await putRes.json()
+      toast(err.message || `推送失败 (${putRes.status})`, true)
+    }
+  } catch { toast('网络错误，推送失败', true) }
+
+  btn.disabled = false; btn.innerHTML = origHTML
+})
+
+// ── Modal helpers ────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open') }
+function closeModal(id) { document.getElementById(id).classList.remove('open') }
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open') })
+})
+
+// ── Toast ────────────────────────────────────────────────────
+let _toastTimer
+function toast(msg, isError = false) {
+  const el = document.getElementById('toast')
+  el.textContent = msg
+  el.className = 'toast show' + (isError ? ' is-error' : '')
+  clearTimeout(_toastTimer)
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2600)
+}
+
+// ── Divider resize ───────────────────────────────────────────
+const divider = document.getElementById('divider')
+const panel   = document.querySelector('.preview-panel')
+let _divDrag  = false
+divider.addEventListener('mousedown', e => { _divDrag = true; divider.classList.add('dragging'); e.preventDefault() })
+document.addEventListener('mousemove', e => {
+  if (!_divDrag) return
+  const w = document.querySelector('.main').getBoundingClientRect().right - e.clientX
+  if (w >= 180 && w <= 600) panel.style.width = w + 'px'
+})
+document.addEventListener('mouseup', () => { _divDrag = false; divider.classList.remove('dragging') })
+
+// ── Minimap ──────────────────────────────────────────────────
+const minimapEl = document.getElementById('minimap')
+const mmCtx     = minimapEl.getContext('2d')
+const MM_W = 180, MM_H = 120, MM_PAD = 12
+
+function drawMinimap() {
+  mmCtx.clearRect(0, 0, MM_W, MM_H)
+
+  const dark = htmlEl.getAttribute('data-theme') === 'dark'
+  const nodeFill   = dark ? '#3a2e2e' : '#f0e8e0'
+  const rootFill   = '#d97757'
+  const edgeStroke = dark ? 'rgba(122,90,82,0.7)' : 'rgba(212,160,144,0.8)'
+  const vpStroke   = 'rgba(217,119,87,0.8)'
+  const vpFill     = 'rgba(217,119,87,0.10)'
+
+  // Collect node bounds (skip collapsed subtrees)
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  function bounds(node) {
+    if (node.x < minX) minX = node.x; if (node.x > maxX) maxX = node.x
+    if (node.y < minY) minY = node.y; if (node.y > maxY) maxY = node.y
+    if (node.collapsed) return
+    for (const c of node.children || []) bounds(c)
+  }
+  for (const root of (tree.roots || [])) bounds(root)
+
+  const tW = Math.max(1, maxX - minX), tH = Math.max(1, maxY - minY)
+  const ms = Math.min((MM_W - 2*MM_PAD) / tW, (MM_H - 2*MM_PAD) / tH)
+  const ox = MM_PAD + (MM_W - 2*MM_PAD - tW*ms)/2 - minX*ms
+  const oy = MM_PAD + (MM_H - 2*MM_PAD - tH*ms)/2 - minY*ms
+
+  // Edges
+  mmCtx.strokeStyle = edgeStroke
+  mmCtx.lineWidth   = 0.8
+  function drawMMEdge(node) {
+    if (node.collapsed) return
+    for (const c of node.children || []) {
+      mmCtx.beginPath()
+      mmCtx.moveTo(node.x*ms+ox, node.y*ms+oy)
+      mmCtx.lineTo(c.x*ms+ox,    c.y*ms+oy)
+      mmCtx.stroke()
+      drawMMEdge(c)
+    }
+  }
+  for (const root of (tree.roots || [])) drawMMEdge(root)
+
+  // Nodes
+  function drawMMNode(node) {
+    const nx = node.x*ms+ox, ny = node.y*ms+oy
+    const isRt = isRootNode(node.id)
+    const hw = isRt ? 8 : 5, hh = isRt ? 4 : 3
+    mmCtx.fillStyle = isRt ? rootFill : nodeFill
+    mmCtx.beginPath()
+    mmCtx.roundRect(nx-hw, ny-hh, hw*2, hh*2, 1.5)
+    mmCtx.fill()
+    if (node.collapsed) return
+    for (const c of node.children || []) drawMMNode(c)
+  }
+  for (const root of (tree.roots || [])) drawMMNode(root)
+
+  // Viewport rectangle
+  const wr = wrapper.getBoundingClientRect()
+  const vx1 = -offset.x / scale,       vy1 = -offset.y / scale
+  const vx2 = (wr.width-offset.x)/scale, vy2 = (wr.height-offset.y)/scale
+  const rx = vx1*ms+ox, ry = vy1*ms+oy, rw = (vx2-vx1)*ms, rh = (vy2-vy1)*ms
+  mmCtx.fillStyle   = vpFill
+  mmCtx.strokeStyle = vpStroke
+  mmCtx.lineWidth   = 1.2
+  mmCtx.fillRect(rx, ry, rw, rh)
+  mmCtx.strokeRect(rx, ry, rw, rh)
+}
+
+// Click minimap → jump to that canvas position
+minimapEl.addEventListener('click', e => {
+  const rect = minimapEl.getBoundingClientRect()
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+  function b(node) {
+    if (node.x < minX) minX=node.x; if (node.x > maxX) maxX=node.x
+    if (node.y < minY) minY=node.y; if (node.y > maxY) maxY=node.y
+    for (const c of node.children||[]) b(c)
+  }
+  for (const root of (tree.roots || [])) b(root)
+  const tW = Math.max(1,maxX-minX), tH = Math.max(1,maxY-minY)
+  const ms = Math.min((MM_W-2*MM_PAD)/tW, (MM_H-2*MM_PAD)/tH)
+  const ox = MM_PAD + (MM_W-2*MM_PAD-tW*ms)/2 - minX*ms
+  const oy = MM_PAD + (MM_H-2*MM_PAD-tH*ms)/2 - minY*ms
+
+  const canvasX = (mx - ox) / ms
+  const canvasY = (my - oy) / ms
+  const wr = wrapper.getBoundingClientRect()
+  offset.x = wr.width/2  - canvasX * scale
+  offset.y = wr.height/2 - canvasY * scale
+  applyTransform()
+  drawMinimap()
+})
+
+// ── Minimap hover show/hide ───────────────────────────────────
+const minimapZone = document.getElementById('minimap-zone')
+let _minimapHideTimer = null
+function showMinimap() {
+  clearTimeout(_minimapHideTimer)
+  minimapEl.classList.add('visible')
+  drawMinimap()
+}
+function hideMinimap() {
+  _minimapHideTimer = setTimeout(() => minimapEl.classList.remove('visible'), 200)
+}
+minimapZone.addEventListener('mouseenter', showMinimap)
+minimapZone.addEventListener('mouseleave', hideMinimap)
+minimapEl.addEventListener('mouseenter', showMinimap)
+minimapEl.addEventListener('mouseleave', hideMinimap)
+
+// ── Hint FAB ─────────────────────────────────────────────────
+const hintFab   = document.getElementById('hint-fab')
+const hintPopup = document.getElementById('hint-popup')
+hintFab.addEventListener('mouseenter', () => hintPopup.classList.add('visible'))
+hintFab.addEventListener('mouseleave', () => hintPopup.classList.remove('visible'))
+hintPopup.addEventListener('mouseenter', () => hintPopup.classList.add('visible'))
+hintPopup.addEventListener('mouseleave', () => hintPopup.classList.remove('visible'))
+
+// ════════════════════════════════════════════════════
+// §18  INIT
+// ════════════════════════════════════════════════════
+const storedTabs = localStorage.getItem('mindmap-tabs')
+if (storedTabs) {
+  try {
+    const parsed = JSON.parse(storedTabs)
+    tabs = parsed.tabs || []
+    activeTabId = parsed.activeTabId || (tabs[0] && tabs[0].id)
+    // Ensure activeTabId is valid
+    if (!tabs.find(t => t.id === activeTabId) && tabs.length > 0) {
+      activeTabId = tabs[0].id
+    }
+  } catch {
+    tabs = []
+    activeTabId = null
+  }
+}
+
+// Migrate old single-tab data
+if (tabs.length === 0) {
+  const oldData = localStorage.getItem('mindmap-data')
+  let migratedTree = getDefaultTree()
+  if (oldData) {
+    try {
+      const parsed = JSON.parse(oldData)
+      migratedTree = migrateTreeFormat(parsed)
+      for (const r of migratedTree.roots) autoLayout(r, r.x || CS, r.y || CS)
+    } catch {}
+  }
+  const id = genTabId()
+  tabs = [{ id, name: '新画布', tree: migratedTree }]
+  activeTabId = id
+}
+
+// Migrate any tabs still in old nodeData format
+for (const tab of tabs) {
+  if (tab.tree) tab.tree = migrateTreeFormat(tab.tree)
+}
+
+// Set active tree
+const activeTab = tabs.find(t => t.id === activeTabId)
+tree = activeTab ? activeTab.tree : tabs[0].tree
+if (!tabs.find(t => t.id === activeTabId)) activeTabId = tabs[0].id
+
+// Ensure layout on all roots
+for (const r of (tree.roots || [])) autoLayout(r, r.x || CS, r.y || CS)
+
+renderTabBar()
+renderAll()
+updateMarkdown()
+setTimeout(fitView, 80)
+</script>
+
+</body>
+</html>
