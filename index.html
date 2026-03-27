@@ -772,15 +772,17 @@
     <!-- Hint FAB -->
     <button id="hint-fab" title="快捷键说明" tabindex="-1">💡</button>
     <div id="hint-popup">
-      <span><kbd>单击</kbd> 编辑节点</span>
-      <span><kbd>Tab</kbd> 子节点 &nbsp;<kbd>Enter</kbd> 兄弟节点</span>
-      <span><kbd>Delete</kbd> 删除节点</span>
+      <span style="opacity:.6;font-size:10px">── 选中状态 ──</span>
+      <span><kbd>Enter</kbd> 新建同级 &nbsp;<kbd>Tab</kbd> 新建子级</span>
+      <span><kbd>←→↑↓</kbd> 导航节点</span>
+      <span><kbd>Delete</kbd> 删除 &nbsp;<kbd>F2</kbd> / <kbd>双击</kbd> 编辑</span>
+      <span style="opacity:.6;font-size:10px">── 编辑状态 ──</span>
+      <span><kbd>Enter</kbd> 完成编辑 &nbsp;<kbd>Tab</kbd> 完成+新建子级</span>
+      <span><kbd>Esc</kbd> 完成+取消选中</span>
+      <span style="opacity:.6;font-size:10px">── 通用 ──</span>
       <span><kbd>⌘Z</kbd> 撤销 &nbsp;<kbd>⌘⇧Z</kbd> 重做</span>
-      <span><kbd>Shift+拖拽</kbd> 框选节点</span>
-      <span><kbd>拖拽背景</kbd> 平移画布</span>
-      <span><kbd>滚轮</kbd> 缩放</span>
-      <span><kbd>右键</kbd> 更多操作</span>
       <span><kbd>F</kbd> 适应视图 &nbsp;<kbd>L</kbd> 整理布局</span>
+      <span><kbd>Shift+拖拽</kbd> 框选 &nbsp;<kbd>滚轮</kbd> 缩放</span>
       <span><kbd>⌘G</kbd> AI 展开 &nbsp;<kbd>⌘B</kbd> 面板</span>
       <span><kbd>⌘T</kbd> 新标签 &nbsp;<kbd>⌘W</kbd> 关闭标签</span>
     </div>
@@ -1778,10 +1780,10 @@ function startEdit(node) {
 
   textEl.addEventListener('blur', () => finish(true), { once: true })
   textEl.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); textEl.blur() }
-    if (e.key === 'Escape') { e.preventDefault(); finish(true); selectNode(null) }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); finish(true); selectNode(null) }
-    if (e.key === 'Tab') { e.preventDefault(); e.stopPropagation() }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); textEl.blur() }
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(true); selectNode(null) }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finish(true); selectNode(null) }
+    if (e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); finish(true); addChild(node) }
   })
 }
 
@@ -1828,14 +1830,10 @@ document.addEventListener('keydown', e => {
   // ⌘1–⌘9: let browser handle natively (switch browser tabs)
   if (isMeta && e.key >= '1' && e.key <= '9') return
 
-  // Tab: always intercept regardless of focus (prevent browser tab-focus)
+  // Tab: always intercept (prevent browser tab-focus)
+  // Note: editing-mode Tab is handled in startEdit() with stopPropagation
   if (e.key === 'Tab') {
     e.preventDefault()
-    e.stopPropagation()
-    // If editing a node, blur first then add child
-    if (document.activeElement?.contentEditable === 'true') {
-      document.activeElement.blur()
-    }
     if (selectedId) { const n = nodeMap.get(selectedId); if (n) addChild(n) }
     return
   }
@@ -1892,6 +1890,38 @@ document.addEventListener('keydown', e => {
   } else if (e.key === 'F2') {
     e.preventDefault()
     startEdit(node)
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault()
+    const parent = parentMap.get(selectedId)
+    if (parent) selectNode(parent.id)
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault()
+    const ch = node.children || []
+    if (ch.length) selectNode(ch[0].id)
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault()
+    const parent = parentMap.get(selectedId)
+    if (parent) {
+      const siblings = parent.children || []
+      const idx = siblings.indexOf(node)
+      if (idx > 0) selectNode(siblings[idx - 1].id)
+    } else {
+      const roots = tree.roots || []
+      const idx = roots.indexOf(node)
+      if (idx > 0) selectNode(roots[idx - 1].id)
+    }
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault()
+    const parent = parentMap.get(selectedId)
+    if (parent) {
+      const siblings = parent.children || []
+      const idx = siblings.indexOf(node)
+      if (idx < siblings.length - 1) selectNode(siblings[idx + 1].id)
+    } else {
+      const roots = tree.roots || []
+      const idx = roots.indexOf(node)
+      if (idx < roots.length - 1) selectNode(roots[idx + 1].id)
+    }
   }
 })
 
