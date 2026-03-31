@@ -1652,6 +1652,8 @@ function attachNodeEvents(el, node) {
   el.addEventListener('mousedown', e => {
     if (e.button !== 0) return
     if (e.target.closest('.node-collapse-badge')) return
+    // Don't start drag when editing text inside the node
+    if (e.target.closest('[contenteditable="true"]')) return
     e.stopPropagation()
     selectNode(node.id)
     // Collect original positions of this node + all descendants (for subtree drag)
@@ -2075,11 +2077,12 @@ document.addEventListener('keydown', e => {
   // ⌘1–⌘9: let browser handle natively (switch browser tabs)
   if (isMeta && e.key >= '1' && e.key <= '9') return
 
-  // Tab: always intercept (prevent browser tab-focus)
+  // Tab: only intercept when a node is selected (not in text input)
   // Note: editing-mode Tab is handled in startEdit() with stopPropagation
-  if (e.key === 'Tab') {
+  if (e.key === 'Tab' && !_inTextInput && selectedId) {
     e.preventDefault()
-    if (selectedId) { const n = nodeMap.get(selectedId); if (n) addChild(n) }
+    const n = nodeMap.get(selectedId)
+    if (n) addChild(n)
     return
   }
 
