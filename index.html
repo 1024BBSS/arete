@@ -254,6 +254,11 @@
     }
     .mm-node.is-root:hover { border-color: rgba(255,255,255,0.35); }
     .mm-node.is-root .node-text { color: #fff; }
+    .mm-node.is-drop-target {
+      outline: 2.5px dashed var(--brand);
+      outline-offset: 4px;
+      background: rgba(193,134,100,0.08);
+    }
     .mm-node.is-dragging {
       cursor: grabbing;
       box-shadow: 0 10px 28px rgba(0,0,0,0.18);
@@ -275,14 +280,14 @@
 
     /* ── Node row (text + collapse btn) ── */
     .node-row { display: flex; align-items: center; gap: 5px; }
-    .node-collapse-btn {
-      border: none; background: transparent; color: var(--text-faint);
-      cursor: pointer; padding: 0; font-size: 9px; line-height: 1;
-      opacity: 0.5; flex-shrink: 0; transition: opacity 0.15s, color 0.15s;
+    .node-collapse-badge {
+      position: absolute; right: -6px; top: 50%; transform: translate(100%, -50%);
+      background: var(--brand); color: #fff; font-size: 9px; font-weight: 600;
+      min-width: 18px; height: 18px; border-radius: 9px; padding: 0 4px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15); z-index: 5; pointer-events: none;
     }
-    .node-collapse-btn:hover { opacity: 1; color: var(--brand); }
-    .mm-node.is-root .node-collapse-btn { color: rgba(255,255,255,0.7); }
-    .mm-node.is-root .node-collapse-btn:hover { color: #fff; opacity: 1; }
+    .mm-node.is-root .node-collapse-badge { background: rgba(255,255,255,0.35); }
 
     /* ── Node type system ── */
     .mm-node[data-type="trigger"]     { border-left: 3px solid #3b82f6; }
@@ -517,11 +522,10 @@
     .lint-dot.error { background: #ef4444; }
 
     /* ── Connection port (appears on node hover) ── */
-    .connect-port {
+    .node-port {
       position: absolute;
-      right: -8px; top: 50%;
-      transform: translateY(-50%);
-      width: 14px; height: 14px;
+      top: 50%; transform: translateY(-50%);
+      width: 12px; height: 12px;
       border-radius: 50%;
       background: var(--brand);
       border: 2px solid var(--surface);
@@ -529,10 +533,12 @@
       cursor: crosshair;
       transition: opacity 0.15s, transform 0.15s;
       z-index: 5;
-      flex-shrink: 0;
     }
-    .mm-node:hover .connect-port { opacity: 0.75; }
-    .connect-port:hover { opacity: 1 !important; transform: translateY(-50%) scale(1.25); }
+    .node-port.port-right { right: -7px; }
+    .node-port.port-left  { left: -7px; }
+    .mm-node:hover .node-port { opacity: 0.6; }
+    .node-port:hover { opacity: 1 !important; transform: translateY(-50%) scale(1.3); }
+    .node-port.has-children { background: var(--text-faint); }
 
     /* ── Preset inspiration panel ── */
     .preset-panel {
@@ -1090,11 +1096,19 @@ function _bm(node, parent) {
   for (const c of node.children || []) _bm(c, node)
 }
 
+function findRoot(id) {
+  for (const r of (tree.roots || [])) {
+    function has(n) { if (n.id === id) return true; return (n.children||[]).some(has) }
+    if (has(r)) return r
+  }
+  return null
+}
+
 // ════════════════════════════════════════════════════
 // §5  LAYOUT ENGINE
 // ════════════════════════════════════════════════════
-const NODE_H_SPACING = 230  // horizontal gap between parent and child nodes
-const NODE_MIN_H     = 72   // minimum vertical slot height per node
+const NODE_H_SPACING = 115  // horizontal gap between parent and child nodes
+const NODE_MIN_H     = 36   // minimum vertical slot height per node
 
 // subtreeH: height of a node's visible subtree in layout units.
 // respectCollapse=true → treats collapsed nodes as leaves (used by relayout).
@@ -1276,42 +1290,23 @@ function syncNodes(node) {
     el.appendChild(rowDiv)
   }
 
-  // Manage collapse button
+  // Manage collapse badge (read-only indicator; collapse is triggered via edge click)
   const rowDiv = el.querySelector('.node-row')
   const _isRoot = isRootNode(node.id)
-  let collapseBtn = el.querySelector('.node-collapse-btn')
+  el.querySelector('.node-collapse-btn')?.remove() // remove legacy button
   if (hasChildren) {
-    // Remove inspo button if we now have children
     el.querySelector('.inspo-btn')?.remove()
-    if (!collapseBtn) {
-      collapseBtn = document.createElement('button')
-      collapseBtn.className = 'node-collapse-btn'
-      collapseBtn.tabIndex = -1
-      collapseBtn.addEventListener('mousedown', e => e.stopPropagation())
-      collapseBtn.addEventListener('click', e => {
-        e.stopPropagation()
-        node.collapsed = !node.collapsed
-        const rootOfNode = tree.roots && tree.roots.find(r => {
-          let cur = node.id
-          while (cur) {
-            if (cur === r.id) return true
-            const p = parentMap.get(cur)
-            if (!p) break
-            cur = p.id
-          }
-          return false
-        })
-        if (rootOfNode) relayout(rootOfNode, rootOfNode.x || CS, rootOfNode.y || CS)
-        renderAll()
-        fitView()
-        autoSave()
-      })
-      if (rowDiv) rowDiv.appendChild(collapseBtn)
+    let badge = el.querySelector('.node-collapse-badge')
+    if (node.collapsed) {
+      const count = (node.children || []).length
+      if (!badge) { badge = document.createElement('span'); badge.className = 'node-collapse-badge'; el.appendChild(badge) }
+      badge.textContent = count
+      badge.title = `${count} 个子节点已折叠，单击连线展开`
+    } else {
+      badge?.remove()
     }
-    collapseBtn.textContent = node.collapsed ? '▶' : '▼'
-    collapseBtn.title = node.collapsed ? '展开' : '折叠'
   } else {
-    collapseBtn?.remove()
+    el.querySelector('.node-collapse-badge')?.remove()
     el.querySelector('.inspo-btn')?.remove()
   }
 
@@ -1336,23 +1331,52 @@ function syncNodes(node) {
   // Remove any stale score badge (cleanup)
   el.querySelector('.root-score-badge')?.remove()
 
-  // Connect port (drag to create connections)
-  let portEl = el.querySelector('.connect-port')
-  if (!portEl) {
-    portEl = document.createElement('div')
-    portEl.className = 'connect-port'
-    portEl.title = '拖拽建立连线'
-    portEl.addEventListener('mousedown', e => {
-      e.stopPropagation()
-      e.preventDefault()
-      const rect = wrapper.getBoundingClientRect()
-      connectState = {
-        fromId: node.id, fromNode: node,
-        ghostX: e.clientX - rect.left - offset.x,
-        ghostY: e.clientY - rect.top  - offset.y,
-      }
-    })
-    el.appendChild(portEl)
+  // Dual ports: left + right — click = collapse, drag = connect
+  for (const side of ['left', 'right']) {
+    let port = el.querySelector(`.node-port.port-${side}`)
+    if (!port) {
+      port = document.createElement('div')
+      port.className = `node-port port-${side}`
+      let dragStarted = false
+      port.addEventListener('mousedown', e => {
+        e.stopPropagation()
+        e.preventDefault()
+        dragStarted = false
+        const sx = e.clientX, sy = e.clientY
+        const onMove = ev => {
+          if (Math.abs(ev.clientX - sx) > 3 || Math.abs(ev.clientY - sy) > 3) {
+            if (!dragStarted) {
+              dragStarted = true
+              const rect = wrapper.getBoundingClientRect()
+              connectState = {
+                fromId: node.id, fromNode: node,
+                ghostX: ev.clientX - rect.left - offset.x,
+                ghostY: ev.clientY - rect.top  - offset.y,
+              }
+            }
+          }
+        }
+        const onUp = () => {
+          document.removeEventListener('mousemove', onMove)
+          document.removeEventListener('mouseup', onUp)
+          if (!dragStarted && node.children && node.children.length) {
+            // Click (no drag) = toggle collapse
+            pushHistory()
+            node.collapsed = !node.collapsed
+            const root = findRoot(node.id)
+            if (root) relayout(root, root.x || CS, root.y || CS)
+            renderAll()
+            autoSave()
+          }
+        }
+        document.addEventListener('mousemove', onMove)
+        document.addEventListener('mouseup', onUp)
+      })
+      el.appendChild(port)
+    }
+    // Visual hint: different style if node has children (collapsible)
+    port.classList.toggle('has-children', !!(node.children && node.children.length && !node.collapsed))
+    port.title = (node.children?.length) ? '点击折叠 / 拖拽连线' : '拖拽连线'
   }
 
   // Image
@@ -1401,7 +1425,44 @@ function renderEdges() {
 }
 
 function drawEdges(node, w) {
-  if (node.collapsed) return
+  // Draw collapsed stub edges (short lines to indicate hidden children)
+  if (node.collapsed) {
+    const parentEl = document.getElementById('n-' + node.id)
+    const pw = parentEl ? parentEl.offsetWidth : 80
+    const px = node.x * scale, py = node.y * scale
+    const pIsRoot = isRootNode(node.id)
+    const x1 = pIsRoot ? px + pw / 2 : px + pw
+    const stubLen = 20 * scale
+    const d = `M ${x1} ${py} L ${x1 + stubLen} ${py}`
+    // Visible stub
+    const stub = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    stub.setAttribute('d', d)
+    stub.setAttribute('fill', 'none')
+    stub.setAttribute('stroke', 'var(--edge-color)')
+    stub.setAttribute('stroke-width', Math.max(1, w * scale))
+    stub.setAttribute('stroke-linecap', 'round')
+    stub.setAttribute('stroke-dasharray', `${3 * scale} ${3 * scale}`)
+    stub.setAttribute('opacity', '0.5')
+    edgesSvg.appendChild(stub)
+    // Hit area for stub (click to expand)
+    const stubHit = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    stubHit.setAttribute('d', d)
+    stubHit.setAttribute('fill', 'none')
+    stubHit.setAttribute('stroke', 'transparent')
+    stubHit.setAttribute('stroke-width', 18)
+    stubHit.style.cursor = 'pointer'
+    stubHit.addEventListener('click', e => {
+      e.stopPropagation()
+      pushHistory()
+      node.collapsed = false
+      const root = findRoot(node.id)
+      if (root) relayout(root, root.x || CS, root.y || CS)
+      renderAll()
+      autoSave()
+    })
+    edgesSvg.appendChild(stubHit)
+    return
+  }
   for (const child of node.children || []) {
     const parentEl = document.getElementById('n-' + node.id)
     const childEl  = document.getElementById('n-' + child.id)
@@ -1419,13 +1480,47 @@ function drawEdges(node, w) {
       x2 = cx + cw
     }
     const mx = (x1 + x2) / 2
+    const d = `M ${x1} ${py} C ${mx} ${py}, ${mx} ${cy}, ${x2} ${cy}`
+    // Visible edge
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
-    path.setAttribute('d', `M ${x1} ${py} C ${mx} ${py}, ${mx} ${cy}, ${x2} ${cy}`)
+    path.setAttribute('d', d)
     path.setAttribute('fill', 'none')
     path.setAttribute('stroke', 'var(--edge-color)')
     path.setAttribute('stroke-width', Math.max(1, w * scale))
     path.setAttribute('stroke-linecap', 'round')
     edgesSvg.appendChild(path)
+    // Hit area: single-click = collapse parent, double-click = detach child
+    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+    hit.setAttribute('d', d)
+    hit.setAttribute('fill', 'none')
+    hit.setAttribute('stroke', 'transparent')
+    hit.setAttribute('stroke-width', 18)
+    hit.style.cursor = 'pointer'
+    const parentNode = node, childNode = child
+    hit.addEventListener('click', e => {
+      e.stopPropagation()
+      pushHistory()
+      parentNode.collapsed = true
+      const root = findRoot(parentNode.id)
+      if (root) relayout(root, root.x || CS, root.y || CS)
+      renderAll()
+      autoSave()
+      toast('已折叠')
+    })
+    hit.addEventListener('dblclick', e => {
+      e.stopPropagation()
+      pushHistory()
+      // Detach child → becomes new root
+      parentNode.children = parentNode.children.filter(c => c.id !== childNode.id)
+      tree.roots.push(childNode)
+      buildMaps()
+      const root = findRoot(parentNode.id)
+      if (root) relayout(root, root.x || CS, root.y || CS)
+      renderAll()
+      autoSave()
+      toast('已断开连线')
+    })
+    edgesSvg.appendChild(hit)
     drawEdges(child, Math.max(1.5, w - 0.6))
   }
 }
@@ -1441,18 +1536,18 @@ function drawExtraEdges() {
     const fh = fel ? fel.offsetHeight : 32
     const tw = tel ? tel.offsetWidth  : 80
     const th = tel ? tel.offsetHeight : 32
-    // Node center in canvas-scaled coords
-    const fcx = (fn.x + (isRootNode(fn.id) ? 0 : fw / 2)) * scale
+    // Node center in canvas-scaled coords (offsetWidth/Height already in screen px)
+    const fcx = fn.x * scale + (isRootNode(fn.id) ? 0 : fw / 2)
     const fcy = fn.y * scale
-    const tcx = (tn.x + (isRootNode(tn.id) ? 0 : tw / 2)) * scale
+    const tcx = tn.x * scale + (isRootNode(tn.id) ? 0 : tw / 2)
     const tcy = tn.y * scale
     // Pick nearest edge: compare dx vs dy to choose horizontal or vertical exit
     const dx = tcx - fcx, dy = tcy - fcy
     let x1, y1, x2, y2, c1x, c1y, c2x, c2y
     if (Math.abs(dx) >= Math.abs(dy)) {
       // Horizontal exit: right or left edge
-      const fHalfW = (isRootNode(fn.id) ? fw / 2 : fw / 2) * scale
-      const tHalfW = (isRootNode(tn.id) ? tw / 2 : tw / 2) * scale
+      const fHalfW = fw / 2
+      const tHalfW = tw / 2
       x1 = dx > 0 ? fcx + fHalfW : fcx - fHalfW; y1 = fcy
       x2 = dx > 0 ? tcx - tHalfW : tcx + tHalfW; y2 = tcy
       const bend = Math.abs(dx) * 0.45
@@ -1460,8 +1555,8 @@ function drawExtraEdges() {
       c2x = x2 + (dx > 0 ? -bend : bend); c2y = y2
     } else {
       // Vertical exit: bottom or top edge
-      const fHalfH = fh / 2 * scale
-      const tHalfH = th / 2 * scale
+      const fHalfH = fh / 2
+      const tHalfH = th / 2
       x1 = fcx; y1 = dy > 0 ? fcy + fHalfH : fcy - fHalfH
       x2 = tcx; y2 = dy > 0 ? tcy - tHalfH : tcy + tHalfH
       const bend = Math.abs(dy) * 0.45
@@ -1527,7 +1622,7 @@ function drawConnectGhost() {
 function attachNodeEvents(el, node) {
   el.addEventListener('mousedown', e => {
     if (e.button !== 0) return
-    if (e.target.closest('.node-collapse-btn')) return
+    if (e.target.closest('.node-collapse-badge')) return
     e.stopPropagation()
     selectNode(node.id)
     // Collect original positions of this node + all descendants (for subtree drag)
@@ -1655,6 +1750,29 @@ document.addEventListener('mousemove', e => {
       }
       const el = document.getElementById('n-' + dragState.node.id)
       if (el) el.classList.add('is-dragging')
+      // Magnet: find nearest non-descendant node within SNAP_DIST
+      const SNAP_DIST = 80  // canvas pixels
+      document.querySelectorAll('.mm-node.is-drop-target').forEach(n => n.classList.remove('is-drop-target'))
+      const draggedId = dragState.node.id
+      const descIds = new Set()
+      ;(function collectDesc(n) { descIds.add(n.id); (n.children||[]).forEach(collectDesc) })(dragState.node)
+      let bestNode = null, bestDist = SNAP_DIST
+      for (const [id, nd] of nodeMap) {
+        if (descIds.has(id)) continue
+        const dist = Math.hypot(nd.x - dragState.node.x, nd.y - dragState.node.y)
+        if (dist < bestDist) { bestDist = dist; bestNode = nd }
+      }
+      dragState.magnetTarget = bestNode
+      if (bestNode) {
+        const nel = document.getElementById('n-' + bestNode.id)
+        if (nel) nel.classList.add('is-drop-target')
+      }
+      // Check detach distance from current parent
+      const curParent = parentMap.get(draggedId)
+      if (curParent) {
+        const detachDist = Math.hypot(curParent.x - dragState.node.x, curParent.y - dragState.node.y)
+        dragState.shouldDetach = detachDist > 200  // far enough to detach
+      }
       scheduleEdges()
     }
   }
@@ -1694,9 +1812,45 @@ document.addEventListener('mouseup', e => {
   if (dragState) {
     const el = document.getElementById('n-' + dragState.node.id)
     el?.classList.remove('is-dragging')
-    if (dragState.moved) { autoSave(); drawMinimap() }
+    document.querySelectorAll('.mm-node.is-drop-target').forEach(n => n.classList.remove('is-drop-target'))
+    if (dragState.moved) {
+      const dragged = dragState.node
+      const oldParent = parentMap.get(dragged.id)
+      const magnetTarget = dragState.magnetTarget
+
+      // Case 1: Magnet snap — reparent to nearest node
+      if (magnetTarget && magnetTarget !== oldParent) {
+        pushHistory()
+        // Remove from old parent/roots
+        if (oldParent) oldParent.children = oldParent.children.filter(c => c.id !== dragged.id)
+        else tree.roots = tree.roots.filter(r => r.id !== dragged.id)
+        // Add to new parent
+        if (!magnetTarget.children) magnetTarget.children = []
+        magnetTarget.children.push(dragged)
+        buildMaps()
+        const newRoot = findRoot(magnetTarget.id)
+        if (newRoot) relayout(newRoot, newRoot.x, newRoot.y)
+        if (oldParent) {
+          const oldRoot = findRoot(oldParent.id)
+          if (oldRoot && oldRoot !== newRoot) relayout(oldRoot, oldRoot.x, oldRoot.y)
+        }
+        renderAll()
+        toast('已连接到「' + magnetTarget.topic + '」')
+      }
+      // Case 2: Detach — dragged far from parent, no magnet target
+      else if (oldParent && dragState.shouldDetach && !magnetTarget) {
+        pushHistory()
+        oldParent.children = oldParent.children.filter(c => c.id !== dragged.id)
+        tree.roots.push(dragged)
+        buildMaps()
+        const oldRoot = findRoot(oldParent.id)
+        if (oldRoot) relayout(oldRoot, oldRoot.x, oldRoot.y)
+        renderAll()
+        toast('已独立')
+      }
+      autoSave(); drawMinimap()
+    }
     dragState = null
-    // Reset after a tick so click handler can read it
     setTimeout(() => { _nodeClickMoved = false }, 0)
   }
   if (panState) {
@@ -1747,12 +1901,22 @@ wrapper.addEventListener('contextmenu', e => {
 })
 
 // ── Inline edit ──────────────────────────────────────────────
+function scrollNodeToCenter(node) {
+  const rect = wrapper.getBoundingClientRect()
+  offset.x = rect.width  / 2 - node.x * scale
+  offset.y = rect.height / 2 - node.y * scale
+  applyTransform()
+  for (const root of (tree.roots || [])) syncNodes(root)
+  scheduleEdges()
+}
+
 function startEdit(node) {
   const el = document.getElementById('n-' + node.id)
   if (!el) return
   const textEl = el.querySelector('.node-text')
   if (!textEl) return
 
+  scrollNodeToCenter(node)
   textEl.contentEditable = 'true'
   textEl.focus()
   // Place cursor at end (append mode — don't overwrite existing text)
@@ -1803,6 +1967,13 @@ document.addEventListener('keydown', e => {
     if (!_inTextInput) { e.preventDefault(); redo(); return }
   }
 
+  // ⌘S save to localStorage (no download)
+  if (isMeta && e.key === 's') {
+    e.preventDefault()
+    autoSave()
+    toast('已保存')
+    return
+  }
   // ⌘T new tab
   if (isMeta && e.key === 't') {
     e.preventDefault()
@@ -1878,7 +2049,17 @@ document.addEventListener('keydown', e => {
   const node = nodeMap.get(selectedId)
   if (!node) return
 
-  if (e.key === 'Enter') {
+  if (e.key === ' ') {
+    e.preventDefault()
+    if (node.children && node.children.length) {
+      pushHistory()
+      node.collapsed = !node.collapsed
+      const root = findRoot(node.id)
+      if (root) relayout(root, root.x || CS, root.y || CS)
+      renderAll()
+      autoSave()
+    }
+  } else if (e.key === 'Enter') {
     e.preventDefault()
     const parent = parentMap.get(selectedId)
     if (parent) addSibling(node, parent)
