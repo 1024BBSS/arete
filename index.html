@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Skill Creator — 可视化 Skill IDE</title>
+  <title>Arete — αρετή</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -701,11 +701,10 @@
   <div class="logo">
     <div class="logo-mark">
       <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/>
-        <line x1="12" y1="7" x2="5" y2="17"/><line x1="12" y1="7" x2="19" y2="17"/>
+        <text x="12" y="17" text-anchor="middle" font-size="16" font-weight="700" font-family="serif" fill="white" stroke="none">α</text>
       </svg>
     </div>
-    <h1>Skill Creator</h1>
+    <h1>Arete</h1>
     <span class="save-indicator" id="save-indicator"></span>
   </div>
 
@@ -1108,7 +1107,7 @@ function findRoot(id) {
 // §5  LAYOUT ENGINE
 // ════════════════════════════════════════════════════
 const NODE_H_SPACING = 115  // horizontal gap between parent and child nodes
-const NODE_MIN_H     = 36   // minimum vertical slot height per node
+const NODE_MIN_H     = 52   // minimum vertical slot height per node
 
 // subtreeH: height of a node's visible subtree in layout units.
 // respectCollapse=true → treats collapsed nodes as leaves (used by relayout).
@@ -1154,6 +1153,9 @@ function relayout(node, x, y) {
 
 // ── Reset / reorganize layout ────────────────────────────────
 function resetLayout() {
+  // Uncollapse all nodes before relayout
+  function uncollapse(n) { n.collapsed = false; (n.children||[]).forEach(uncollapse) }
+  for (const root of (tree.roots || [])) uncollapse(root)
   for (const root of (tree.roots || [])) relayout(root, root.x || CS, root.y || CS)
   clearCanvas()
   buildMaps()
@@ -2059,6 +2061,9 @@ document.addEventListener('keydown', e => {
       renderAll()
       autoSave()
     }
+  } else if (e.key === 'Enter' && isMeta) {
+    e.preventDefault()
+    startEdit(node)
   } else if (e.key === 'Enter') {
     e.preventDefault()
     const parent = parentMap.get(selectedId)
