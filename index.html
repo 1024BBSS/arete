@@ -878,6 +878,12 @@
         <input type="text" id="gh-branch" placeholder="main">
       </div>
     </div>
+    <div class="form-group" style="margin-top:12px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="gh-autosync" style="width:auto;margin:0;">
+        自动同步到 GitHub（每次保存后 30 秒内自动推送）
+      </label>
+    </div>
     <hr style="border:none;border-top:1px solid var(--border);margin:16px 0 14px;">
     <div class="form-group">
       <label>Anthropic API Key（用于 ⌘G AI 协作功能）</label>
@@ -2707,6 +2713,7 @@ function autoSave() {
   const ts = t.getHours().toString().padStart(2,'0') + ':' + t.getMinutes().toString().padStart(2,'0')
   document.getElementById('save-indicator').textContent = `· 已自动保存 ${ts}`
   updateMarkdown()
+  scheduleGhSync()
 }
 
 // ════════════════════════════════════════════════════
@@ -3072,6 +3079,7 @@ function loadGhConfig() {
   document.getElementById('gh-repo').value   = c.repo   || ''
   document.getElementById('gh-path').value   = c.path   || 'mindmap.md'
   document.getElementById('gh-branch').value = c.branch || 'main'
+  document.getElementById('gh-autosync').checked = !!c.autosync
   document.getElementById('anthropic-key').value = localStorage.getItem('anthropic-api-key') || ''
 }
 
@@ -3079,11 +3087,12 @@ document.getElementById('btn-settings').addEventListener('click', () => { loadGh
 document.getElementById('btn-settings-cancel').addEventListener('click', () => closeModal('overlay-settings'))
 document.getElementById('btn-settings-save').addEventListener('click', () => {
   const c = {
-    token:  document.getElementById('gh-token').value.trim(),
-    owner:  document.getElementById('gh-owner').value.trim(),
-    repo:   document.getElementById('gh-repo').value.trim(),
-    path:   document.getElementById('gh-path').value.trim()   || 'mindmap.md',
-    branch: document.getElementById('gh-branch').value.trim() || 'main',
+    token:    document.getElementById('gh-token').value.trim(),
+    owner:    document.getElementById('gh-owner').value.trim(),
+    repo:     document.getElementById('gh-repo').value.trim(),
+    path:     document.getElementById('gh-path').value.trim()   || 'mindmap.md',
+    branch:   document.getElementById('gh-branch').value.trim() || 'main',
+    autosync: document.getElementById('gh-autosync').checked,
   }
   localStorage.setItem('gh-config', JSON.stringify(c))
   const ak = document.getElementById('anthropic-key').value.trim()
@@ -3093,43 +3102,73 @@ document.getElementById('btn-settings-save').addEventListener('click', () => {
   toast('设置已保存')
 })
 
-document.getElementById('btn-github').addEventListener('click', async () => {
+// Debounced auto-sync to GitHub (30s after last save)
+let _ghSyncTimer = null
+function scheduleGhSync() {
   const c = JSON.parse(localStorage.getItem('gh-config') || '{}')
-  if (!c.token || !c.owner || !c.repo) { loadGhConfig(); openModal('overlay-settings'); toast('请先填写 GitHub 配置', true); return }
+  if (!c.autosync || !c.token || !c.owner || !c.repo) return
+  clearTimeout(_ghSyncTimer)
+  _ghSyncTimer = setTimeout(() => pushToGitHub(true), 30000)
+}
+
+async function pushToGitHub(silent = false) {
+  const c = JSON.parse(localStorage.getItem('gh-config') || '{}')
+  if (!c.token || !c.owner || !c.repo) {
+    if (!silent) { loadGhConfig(); openModal('overlay-settings'); toast('请先填写 GitHub 配置', true) }
+    return
+  }
 
   const btn = document.getElementById('btn-github')
   const origHTML = btn.innerHTML
-  btn.disabled = true; btn.textContent = '推送中…'
+  if (!silent) { btn.disabled = true; btn.textContent = '推送中…' }
 
+  // Push JSON data (full tree state)
+  const jsonPath = c.path.replace(/\.md$/, '') + '.json'
+  const jsonData = JSON.stringify({ activeTabId, tabs }, null, 2)
+  // Push SKILL.md
   const activeRoot = getActiveRoot()
   const markdown = toSkillMd(activeRoot || tree.roots[0])
-  const autoPath = c.path || ((activeRoot?.topic || 'skill').toLowerCase().replace(/\s+/g,'-').replace(/[^\w\u4e00-\u9fa5-]/g,'') || 'skill') + '.md'
-  const apiUrl = `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${autoPath}`
+  const mdPath = c.path || 'mindmap.md'
   const headers = { Authorization: `token ${c.token}`, Accept: 'application/vnd.github.v3+json', 'Content-Type': 'application/json' }
 
   try {
-    let sha = null
-    const getRes = await fetch(`${apiUrl}?ref=${c.branch}`, { headers })
-    if (getRes.ok) sha = (await getRes.json()).sha
-    const putRes = await fetch(apiUrl, {
-      method: 'PUT', headers,
-      body: JSON.stringify({
-        message: `Update skill ${new Date().toLocaleString('zh-CN')}`,
-        content: btoa(new TextDecoder('latin1').decode(new TextEncoder().encode(markdown))),
-        branch: c.branch, ...(sha ? { sha } : {})
+    // Push both files
+    for (const [fpath, content] of [[mdPath, markdown], [jsonPath, jsonData]]) {
+      const apiUrl = `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${fpath}`
+      let sha = null
+      const getRes = await fetch(`${apiUrl}?ref=${c.branch}`, { headers })
+      if (getRes.ok) sha = (await getRes.json()).sha
+      const putRes = await fetch(apiUrl, {
+        method: 'PUT', headers,
+        body: JSON.stringify({
+          message: `Sync ${fpath} — ${new Date().toLocaleString('zh-CN')}`,
+          content: btoa(unescape(encodeURIComponent(content))),
+          branch: c.branch, ...(sha ? { sha } : {})
+        })
       })
-    })
-    if (putRes.ok) {
+      if (!putRes.ok) {
+        const err = await putRes.json()
+        if (!silent) toast(err.message || `推送失败 (${putRes.status})`, true)
+        btn.disabled = false; btn.innerHTML = origHTML
+        return
+      }
+    }
+    if (silent) {
+      document.getElementById('save-indicator').textContent += ' · GitHub ✓'
+    } else {
       toast('已推送到 GitHub ✓')
       btn.classList.add('btn-success')
       setTimeout(() => btn.classList.remove('btn-success'), 2000)
-    } else {
-      const err = await putRes.json()
-      toast(err.message || `推送失败 (${putRes.status})`, true)
     }
-  } catch { toast('网络错误，推送失败', true) }
+  } catch {
+    if (!silent) toast('网络错误，推送失败', true)
+  }
 
   btn.disabled = false; btn.innerHTML = origHTML
+}
+
+document.getElementById('btn-github').addEventListener('click', () => {
+  pushToGitHub(false)
 })
 
 // ── Modal helpers ────────────────────────────────────────────
@@ -3336,6 +3375,34 @@ if (!tabs.find(t => t.id === activeTabId)) activeTabId = tabs[0].id
 
 // Ensure layout on all roots
 for (const r of (tree.roots || [])) autoLayout(r, r.x || CS, r.y || CS)
+
+// Pull data from GitHub on load if autosync is enabled
+;(async function pullFromGitHub() {
+  const c = JSON.parse(localStorage.getItem('gh-config') || '{}')
+  if (!c.autosync || !c.token || !c.owner || !c.repo) return
+  const jsonPath = (c.path || 'mindmap.md').replace(/\.md$/, '') + '.json'
+  const apiUrl = `https://api.github.com/repos/${c.owner}/${c.repo}/contents/${jsonPath}?ref=${c.branch || 'main'}`
+  const headers = { Authorization: `token ${c.token}`, Accept: 'application/vnd.github.v3+json' }
+  try {
+    const res = await fetch(apiUrl, { headers })
+    if (!res.ok) return
+    const data = await res.json()
+    const content = decodeURIComponent(escape(atob(data.content)))
+    const parsed = JSON.parse(content)
+    if (parsed.tabs && parsed.tabs.length) {
+      tabs = parsed.tabs
+      activeTabId = parsed.activeTabId || tabs[0].id
+      for (const tab of tabs) { if (tab.tree) tab.tree = migrateTreeFormat(tab.tree) }
+      const at = tabs.find(t => t.id === activeTabId)
+      tree = at ? at.tree : tabs[0].tree
+      for (const r of (tree.roots || [])) autoLayout(r, r.x || CS, r.y || CS)
+      renderTabBar()
+      renderAll()
+      fitView()
+      toast('已从 GitHub 同步')
+    }
+  } catch {}
+})()
 
 renderTabBar()
 renderAll()
