@@ -5,54 +5,58 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Arete — αρετή</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --brand:        #d97757;
-      --brand-hover:  #c4623d;
-      --bg:           #f9f6f2;
-      --surface:      #ffffff;
-      --border:       #e8e2d9;
-      --text:         #1a1a1a;
-      --text-muted:   #8a7f74;
-      --text-faint:   #b5aca1;
-      --preview-bg:   #f9f6f2;
-      --preview-text: #3d3530;
-      --success:      #3a9b6f;
-      --error:        #d05050;
-      --overlay:      rgba(0,0,0,0.28);
-      --node-bg:      #ffffff;
-      --node-border:  #e0d6cc;
-      --node-text:    #3d2f26;
-      --edge-color:   rgba(212,160,144,0.85);
-      --grid-dot:     rgba(0,0,0,0.07);
+      --brand:        #CC785C;
+      --brand-hover:  #B86A4E;
+      --bg:           #F5F5F3;
+      --surface:      #FFFFFF;
+      --border:       #E5E5E0;
+      --text:         #2B2B2B;
+      --text-muted:   #6B6B6B;
+      --text-faint:   #9B9B9B;
+      --preview-bg:   #FAFAF9;
+      --preview-text: #3B3B3B;
+      --success:      #2D9F6E;
+      --error:        #D14343;
+      --overlay:      rgba(0,0,0,0.25);
+      --node-bg:      #FFFFFF;
+      --node-border:  #E0E0DB;
+      --node-text:    #3B3B3B;
+      --edge-color:   rgba(204,120,92,0.8);
+      --grid-dot:     rgba(0,0,0,0.06);
     }
     [data-theme="dark"] {
-      --bg:           #181818;
-      --surface:      #222222;
-      --border:       #333333;
-      --text:         #e8e3dc;
-      --text-muted:   #9a948e;
-      --text-faint:   #52504d;
-      --preview-bg:   #1e1e1e;
-      --preview-text: #cdc8c2;
-      --overlay:      rgba(0,0,0,0.55);
-      --node-bg:      #2a2424;
-      --node-border:  #5a3e34;
-      --node-text:    #cdc8c2;
-      --edge-color:   rgba(122,90,82,0.9);
-      --grid-dot:     rgba(255,255,255,0.05);
+      --brand:        #CC785C;
+      --brand-hover:  #E08A6E;
+      --bg:           #1A1A1A;
+      --surface:      #2B2B2B;
+      --border:       #3B3B3B;
+      --text:         #E8E8E8;
+      --text-muted:   #A0A0A0;
+      --text-faint:   #5B5B5B;
+      --preview-bg:   #232323;
+      --preview-text: #D0D0D0;
+      --overlay:      rgba(0,0,0,0.6);
+      --node-bg:      #2B2B2B;
+      --node-border:  #4B4B4B;
+      --node-text:    #D0D0D0;
+      --edge-color:   rgba(204,120,92,0.7);
+      --grid-dot:     rgba(255,255,255,0.04);
     }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--bg);
       height: 100vh;
       display: flex;
       flex-direction: column;
       color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
     /* ── Header ── */
@@ -76,15 +80,15 @@
     .logo-mark {
       width: 28px; height: 28px;
       background: var(--brand);
-      border-radius: 7px;
+      border-radius: 6px;
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
     }
     .logo-mark svg { width: 15px; height: 15px; }
     header h1 {
-      font-size: 14px; font-weight: 600;
+      font-size: 15px; font-weight: 600;
       color: var(--text);
-      letter-spacing: -0.01em;
+      letter-spacing: -0.02em;
       white-space: nowrap;
     }
     .save-indicator { font-size: 11px; color: var(--text-faint); white-space: nowrap; }
@@ -92,12 +96,14 @@
 
     /* ── Buttons ── */
     .btn {
-      padding: 5px 12px;
-      border-radius: 7px;
+      padding: 6px 14px;
+      border-radius: 6px;
       border: 1px solid var(--border);
       background: var(--surface);
       cursor: pointer;
-      font-size: 12.5px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s ease;
       font-family: inherit;
       font-weight: 500;
       color: var(--text-muted);
