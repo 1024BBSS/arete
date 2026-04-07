@@ -2065,9 +2065,9 @@ document.addEventListener('keydown', e => {
 
   // Tab: always prevent default to avoid opening browser tab
   // Note: editing-mode Tab is handled in startEdit() with stopPropagation
-  if (e.key === 'Tab' && !_inTextInput) {
+  if (e.key === 'Tab') {
     e.preventDefault()
-    if (selectedId) {
+    if (selectedId && !_inTextInput) {
       const n = nodeMap.get(selectedId)
       if (n) addChild(n)
     }
