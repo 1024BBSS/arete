@@ -2016,6 +2016,11 @@ function startEdit(node) {
 // ════════════════════════════════════════════════════
 // §10  INPUT — KEYBOARD
 // ════════════════════════════════════════════════════
+// Capture-phase Tab prevention — fires before any other handler or browser default
+window.addEventListener('keydown', e => {
+  if (e.key === 'Tab') e.preventDefault()
+}, true)
+
 document.addEventListener('keydown', e => {
   const isMeta = e.metaKey || e.ctrlKey
 
