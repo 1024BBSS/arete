@@ -2083,12 +2083,14 @@ document.addEventListener('keydown', e => {
   // ⌘1–⌘9: let browser handle natively (switch browser tabs)
   if (isMeta && e.key >= '1' && e.key <= '9') return
 
-  // Tab: only intercept when a node is selected (not in text input)
+  // Tab: always prevent default to avoid opening browser tab
   // Note: editing-mode Tab is handled in startEdit() with stopPropagation
-  if (e.key === 'Tab' && !_inTextInput && selectedId) {
+  if (e.key === 'Tab' && !_inTextInput) {
     e.preventDefault()
-    const n = nodeMap.get(selectedId)
-    if (n) addChild(n)
+    if (selectedId) {
+      const n = nodeMap.get(selectedId)
+      if (n) addChild(n)
+    }
     return
   }
 
