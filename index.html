@@ -732,10 +732,10 @@
   <div class="sep"></div>
 
   <!-- Export & GitHub -->
-  <button class="btn-icon" id="btn-copy" title="复制 SKILL.md" tabindex="-1">
+  <button class="btn-icon" id="btn-copy" title="复制 Markdown" tabindex="-1">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
   </button>
-  <button class="btn-icon" id="btn-export-md" title="导出 SKILL.md" tabindex="-1">
+  <button class="btn-icon" id="btn-export-md" title="导出 Markdown" tabindex="-1">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
   </button>
   <button class="btn-icon" id="btn-github" title="推送 GitHub" style="color:var(--brand)" tabindex="-1">
@@ -755,7 +755,7 @@
     <svg id="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     <svg id="icon-sun"  width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
   </button>
-  <button class="btn-icon" id="btn-settings" title="GitHub 设置" tabindex="-1">
+  <button class="btn-icon" id="btn-settings" title="设置" tabindex="-1">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   </button>
 </header>
@@ -807,10 +807,7 @@
   </div>
   <div class="preview-panel">
     <div class="preview-header">
-      <span>SKILL.md 预览</span>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <button class="btn btn-primary" id="btn-install" title="保存 SKILL.md 到本地" style="font-size:11px;padding:3px 10px;height:auto;" tabindex="-1">⬇ 安装</button>
-      </div>
+      <span>Markdown</span>
     </div>
     <textarea id="markdown-output" spellcheck="false"></textarea>
     <div class="lint-panel" id="lint-panel"></div>
@@ -858,7 +855,8 @@
 <!-- Settings Modal -->
 <div class="modal-overlay" id="overlay-settings">
   <div class="modal">
-    <h2>GitHub 设置</h2>
+    <h2>设置</h2>
+    <h3 style="margin:0 0 10px;font-size:14px;color:var(--fg-dim);">GitHub 同步</h3>
     <div class="form-group">
       <label>Personal Access Token</label>
       <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
@@ -2347,15 +2345,15 @@ async function askClaude(node) {
   const activeRoot    = getActiveRoot()
   const skillContext  = toSkillMd(activeRoot || node)
   const prompt =
-`你正在帮助用户设计一个 Claude AI Skill（SKILL.md 可复用执行脚本）。
-当前 Skill 名称：${activeRoot?.topic || '未命名'}
-当前 Skill 结构：
+`你正在帮助用户进行头脑风暴和思维导图创作。
+当前主题：${activeRoot?.topic || '未命名'}
+当前结构：
 ${skillContext}
 ---
 用户选中了节点"${node.topic}"${nodeTypeLabel}。
-请为这个节点生成 3–6 个相关的子节点，内容契合 SKILL.md 规范（触发条件、执行步骤、工具、注意事项等）。
+请为这个节点生成 3–6 个相关的子节点，拓展思路。
 只返回 JSON 数组，不要有任何其他文字，格式：
-[{"topic":"...", "type":"trigger|step|tool|note|example|description"}]`
+[{"topic":"..."}]`
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -2472,7 +2470,7 @@ document.getElementById('btn-dark').addEventListener('click', () => {
 })
 
 // ════════════════════════════════════════════════════
-// §14  MARKDOWN / SKILL.MD
+// §14  MARKDOWN
 // ════════════════════════════════════════════════════
 // Convert node tree to Markdown (plain hierarchical format, no YAML frontmatter)
 function toSkillMd(root) {
@@ -2634,7 +2632,7 @@ function countNodes(node) {
 }
 
 
-// Parse Markdown / SKILL.md text into a node tree.
+// Parse Markdown text into a node tree.
 // Supports: YAML frontmatter name extraction, auto-type from section headings,
 // heading hierarchy (##/###), ordered and unordered list items.
 function parseMarkdownToTree(md) {
@@ -3041,35 +3039,6 @@ function download(content, filename, type) {
   URL.revokeObjectURL(a.href)
 }
 
-// ── Install (File System Access API) ─────────────────────────
-async function installSkill() {
-  const root = getActiveRoot() || tree.roots[0]
-  const md = toSkillMd(root)
-  const skillName = (root?.topic || 'mindmap')
-    .toLowerCase().replace(/\s+/g, '-').replace(/[^\w\u4e00-\u9fa5-]/g, '') || 'mindmap'
-  const fileName = skillName + '.md'
-  if (window.showSaveFilePicker) {
-    try {
-      const fh = await window.showSaveFilePicker({
-        suggestedName: fileName,
-        types: [{ description: 'Markdown', accept: { 'text/plain': ['.md'] } }],
-      })
-      const writable = await fh.createWritable()
-      await writable.write(md)
-      await writable.close()
-      toast(`✓ 已保存到 ${fh.name}`)
-    } catch (e) {
-      if (e.name !== 'AbortError') toast('保存失败：' + e.message, true)
-    }
-  } else {
-    // Fallback: browser download
-    download(md, fileName, 'text/plain')
-    toast(`✓ 已下载 ${fileName}`)
-  }
-}
-
-document.getElementById('btn-install').addEventListener('click', installSkill)
-
 // ── AI Setup Modal ────────────────────────────────────────────
 document.getElementById('btn-ai-setup-cancel').addEventListener('click', () => {
   _aiPendingNode = null
@@ -3145,7 +3114,7 @@ async function pushToGitHub(silent = false) {
   // Push JSON data (full tree state)
   const jsonPath = c.path.replace(/\.md$/, '') + '.json'
   const jsonData = JSON.stringify({ activeTabId, tabs }, null, 2)
-  // Push SKILL.md
+  // Push Markdown
   const activeRoot = getActiveRoot()
   const markdown = toSkillMd(activeRoot || tree.roots[0])
   const mdPath = c.path || 'mindmap.md'
