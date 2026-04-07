@@ -891,6 +891,19 @@
       </label>
     </div>
     <hr style="border:none;border-top:1px solid var(--border);margin:16px 0 14px;">
+    <h2 style="margin:0 0 12px;">本地文件夹同步</h2>
+    <p class="modal-note" style="margin-bottom:10px;">选择本地文件夹（如 Obsidian vault），每次保存时自动同步 Markdown 文件。</p>
+    <div class="form-group" style="display:flex;align-items:center;gap:8px;">
+      <button class="btn" id="btn-pick-local-dir">选择文件夹</button>
+      <span id="local-dir-status" style="font-size:13px;color:var(--fg-dim);"></span>
+    </div>
+    <div class="form-group" style="margin-top:8px;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="local-autosync" style="width:auto;margin:0;">
+        启用自动同步到本地文件夹
+      </label>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0 14px;">
     <div class="form-group">
       <label>Anthropic API Key（用于 ⌘G AI 协作功能）</label>
       <input type="password" id="anthropic-key" placeholder="sk-ant-api03-xxxx" autocomplete="off">
@@ -2461,9 +2474,12 @@ document.getElementById('btn-dark').addEventListener('click', () => {
 // ════════════════════════════════════════════════════
 // §14  MARKDOWN / SKILL.MD
 // ════════════════════════════════════════════════════
-// Convert node tree to SKILL.md format
+// Convert node tree to Markdown (plain hierarchical format, no YAML frontmatter)
 function toSkillMd(root) {
-  // Collect all nodes by type (depth-first, skip root)
+  const rawName = root.topic || '思维导图'
+  let md = `# ${rawName}\n\n`
+
+  // Collect typed nodes
   const byType = { trigger: [], step: [], tool: [], description: [], note: [], example: [] }
   function collect(node) {
     if (!isRootNode(node.id) && node.type && byType[node.type]) {
@@ -2473,35 +2489,18 @@ function toSkillMd(root) {
   }
   collect(root)
 
-  // Derive skill name slug (keep Chinese characters)
-  const rawName = root.topic || 'my-skill'
-  const skillSlug = rawName
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w\u4e00-\u9fa5-]/g, '')
-    || 'my-skill'
-
-  let md = `---\n`
-  md += `name: ${skillSlug}\n`
-  md += `version: 1.0.0\n`
-  md += `description: |\n`
-
-  const descLines = byType.description.length
-    ? byType.description.map(n => `  ${n.topic}`)
-    : [`  ${rawName}`]
-  md += descLines.join('\n') + '\n'
-
+  // Typed sections — only output if nodes of that type exist
   if (byType.trigger.length) {
-    byType.trigger.forEach(t => { md += `  当用户说 "${t.topic}" 时触发。\n` })
+    md += `## 触发条件\n\n`
+    byType.trigger.forEach(t => { md += `- ${t.topic}\n` })
+    md += '\n'
   }
 
-  if (byType.tool.length) {
-    md += `allowed-tools:\n`
-    byType.tool.forEach(t => { md += `  - ${t.topic}\n` })
+  if (byType.description.length) {
+    md += `## 描述\n\n`
+    byType.description.forEach(n => { md += `- ${n.topic}\n` })
+    md += '\n'
   }
-
-  md += `---\n\n`
-  md += `# /${skillSlug}\n\n`
 
   if (byType.step.length) {
     md += `## 执行步骤\n\n`
@@ -2509,6 +2508,12 @@ function toSkillMd(root) {
       md += `${i + 1}. ${s.topic}\n`
       for (const sub of s.children || []) md += `   - ${sub.topic}\n`
     })
+    md += '\n'
+  }
+
+  if (byType.tool.length) {
+    md += `## 工具\n\n`
+    byType.tool.forEach(t => { md += `- ${t.topic}\n` })
     md += '\n'
   }
 
@@ -2528,14 +2533,16 @@ function toSkillMd(root) {
   const untyped = []
   function collectUntyped(node, depth) {
     if (!isRootNode(node.id) && (!node.type || !byType[node.type]) && node.topic) {
-      untyped.push({ topic: node.topic, depth })
+      untyped.push({ topic: node.topic, depth, children: node.children || [] })
     }
     for (const c of node.children || []) collectUntyped(c, depth + 1)
   }
   collectUntyped(root, 0)
 
   if (untyped.length) {
-    md += `## 内容\n\n`
+    // If there are also typed sections, add a heading for untyped content
+    const hasTyped = Object.values(byType).some(a => a.length > 0)
+    if (hasTyped) md += `## 内容\n\n`
     untyped.forEach(n => {
       const indent = '  '.repeat(Math.max(0, n.depth - 1))
       md += `${indent}- ${n.topic}\n`
@@ -2725,6 +2732,7 @@ function autoSave() {
   document.getElementById('save-indicator').textContent = `· 已自动保存 ${ts}`
   updateMarkdown()
   scheduleGhSync()
+  syncToLocalFolder(true)
 }
 
 // ════════════════════════════════════════════════════
@@ -3037,13 +3045,14 @@ function download(content, filename, type) {
 async function installSkill() {
   const root = getActiveRoot() || tree.roots[0]
   const md = toSkillMd(root)
-  const skillName = (root?.topic || 'my-skill')
-    .toLowerCase().replace(/\s+/g, '-').replace(/[^\w\u4e00-\u9fa5-]/g, '') || 'my-skill'
+  const skillName = (root?.topic || 'mindmap')
+    .toLowerCase().replace(/\s+/g, '-').replace(/[^\w\u4e00-\u9fa5-]/g, '') || 'mindmap'
+  const fileName = skillName + '.md'
   if (window.showSaveFilePicker) {
     try {
       const fh = await window.showSaveFilePicker({
-        suggestedName: 'SKILL.md',
-        types: [{ description: 'SKILL.md Markdown', accept: { 'text/plain': ['.md'] } }],
+        suggestedName: fileName,
+        types: [{ description: 'Markdown', accept: { 'text/plain': ['.md'] } }],
       })
       const writable = await fh.createWritable()
       await writable.write(md)
@@ -3054,8 +3063,8 @@ async function installSkill() {
     }
   } else {
     // Fallback: browser download
-    download(md, 'SKILL.md', 'text/plain')
-    toast(`✓ 已下载 SKILL.md（将文件移至 ~/.claude/skills/${skillName}/）`)
+    download(md, fileName, 'text/plain')
+    toast(`✓ 已下载 ${fileName}`)
   }
 }
 
@@ -3094,7 +3103,7 @@ function loadGhConfig() {
   document.getElementById('anthropic-key').value = localStorage.getItem('anthropic-api-key') || ''
 }
 
-document.getElementById('btn-settings').addEventListener('click', () => { loadGhConfig(); openModal('overlay-settings') })
+document.getElementById('btn-settings').addEventListener('click', () => { loadGhConfig(); updateLocalDirStatus(); openModal('overlay-settings') })
 document.getElementById('btn-settings-cancel').addEventListener('click', () => closeModal('overlay-settings'))
 document.getElementById('btn-settings-save').addEventListener('click', () => {
   const c = {
@@ -3181,6 +3190,105 @@ async function pushToGitHub(silent = false) {
 document.getElementById('btn-github').addEventListener('click', () => {
   pushToGitHub(false)
 })
+
+// ── Local Folder Sync (File System Access API) ──────────────
+let _localDirHandle = null
+
+// Persist directory handle in IndexedDB
+function openLocalSyncDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('local-sync', 1)
+    req.onupgradeneeded = () => req.result.createObjectStore('handles')
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+async function saveLocalDirHandle(handle) {
+  const db = await openLocalSyncDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('handles', 'readwrite')
+    tx.objectStore('handles').put(handle, 'dir')
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
+async function loadLocalDirHandle() {
+  try {
+    const db = await openLocalSyncDB()
+    return new Promise((resolve) => {
+      const tx = db.transaction('handles', 'readonly')
+      const req = tx.objectStore('handles').get('dir')
+      req.onsuccess = () => resolve(req.result || null)
+      req.onerror = () => resolve(null)
+    })
+  } catch { return null }
+}
+
+async function pickLocalDir() {
+  if (!window.showDirectoryPicker) {
+    toast('当前浏览器不支持选择本地文件夹，请使用 Chrome/Edge', true)
+    return
+  }
+  try {
+    _localDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' })
+    await saveLocalDirHandle(_localDirHandle)
+    localStorage.setItem('local-autosync', 'true')
+    document.getElementById('local-autosync').checked = true
+    updateLocalDirStatus()
+    toast('✓ 已选择本地同步文件夹：' + _localDirHandle.name)
+  } catch (e) {
+    if (e.name !== 'AbortError') toast('选择文件夹失败：' + e.message, true)
+  }
+}
+
+function updateLocalDirStatus() {
+  const el = document.getElementById('local-dir-status')
+  if (_localDirHandle) {
+    el.textContent = '📁 ' + _localDirHandle.name
+  } else {
+    el.textContent = '未选择'
+  }
+  document.getElementById('local-autosync').checked = localStorage.getItem('local-autosync') === 'true'
+}
+
+async function syncToLocalFolder(silent = true) {
+  if (!_localDirHandle || localStorage.getItem('local-autosync') !== 'true') return
+  try {
+    // Verify permission
+    const perm = await _localDirHandle.queryPermission({ mode: 'readwrite' })
+    if (perm !== 'granted') {
+      const req = await _localDirHandle.requestPermission({ mode: 'readwrite' })
+      if (req !== 'granted') return
+    }
+    // Write each tab as a separate .md file
+    for (const tab of tabs) {
+      const root = tab.tree?.roots?.[0]
+      if (!root) continue
+      const fileName = (tab.name || '未命名')
+        .replace(/[<>:"/\\|?*]/g, '_')  // sanitize filename
+        + '.md'
+      const md = toSkillMd(root)
+      const fh = await _localDirHandle.getFileHandle(fileName, { create: true })
+      const writable = await fh.createWritable()
+      await writable.write(md)
+      await writable.close()
+    }
+    if (!silent) toast('✓ 已同步到本地文件夹')
+    document.getElementById('save-indicator').textContent += ' · 本地 ✓'
+  } catch (e) {
+    if (!silent) toast('本地同步失败：' + e.message, true)
+  }
+}
+
+document.getElementById('btn-pick-local-dir').addEventListener('click', pickLocalDir)
+document.getElementById('local-autosync').addEventListener('change', (e) => {
+  localStorage.setItem('local-autosync', e.target.checked ? 'true' : 'false')
+})
+
+// Restore directory handle on load
+loadLocalDirHandle().then(h => { _localDirHandle = h; updateLocalDirStatus() })
 
 // ── Modal helpers ────────────────────────────────────────────
 function openModal(id)  { document.getElementById(id).classList.add('open') }
