@@ -504,33 +504,6 @@
       opacity: 0.8;
     }
 
-    /* ── Lint panel ── */
-    .lint-panel {
-      border-top: 1px solid var(--border);
-      flex-shrink: 0;
-      max-height: 116px;
-      overflow-y: auto;
-    }
-    .lint-panel:empty { display: none; }
-    .lint-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 7px;
-      font-size: 11.5px;
-      color: var(--text-muted);
-      line-height: 1.45;
-      padding: 6px 12px;
-    }
-    .lint-item + .lint-item { border-top: 1px solid var(--border); }
-    .lint-dot {
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      margin-top: 4px;
-      flex-shrink: 0;
-    }
-    .lint-dot.warn  { background: #f59e0b; border-radius: 2px; transform: rotate(45deg); }
-    .lint-dot.error { background: #ef4444; }
-
     /* ── Connection port (appears on node hover) ── */
     .node-port {
       position: absolute;
@@ -797,7 +770,6 @@
       <span>Markdown</span>
     </div>
     <textarea id="markdown-output" spellcheck="false"></textarea>
-    <div class="lint-panel" id="lint-panel"></div>
   </div>
 </div>
 
@@ -844,11 +816,21 @@
   <div class="modal">
     <h2>设置</h2>
     <h3 style="margin:0 0 10px;font-size:14px;color:var(--fg-dim);">GitHub 同步</h3>
+    <details style="margin-bottom:12px;font-size:12px;color:var(--text-muted);line-height:1.6;">
+      <summary style="cursor:pointer;font-size:13px;color:var(--text);margin-bottom:6px;">如何设置？</summary>
+      <ol style="padding-left:18px;margin:4px 0;">
+        <li>打开 <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--brand);">GitHub Token 页面</a>，点击 Generate new token (classic)</li>
+        <li>勾选 <code>repo</code> 权限，生成后复制 Token 填入下方</li>
+        <li>填写你的 GitHub 用户名、仓库名（需提前创建好）</li>
+        <li>文件路径填写保存位置，如 <code>notes/mindmap.md</code></li>
+        <li>勾选自动同步，之后每次编辑都会自动推送到 GitHub</li>
+      </ol>
+    </details>
     <div class="form-group">
       <label>Personal Access Token</label>
       <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
     </div>
-    <p class="modal-note">需要 <code>contents</code> 读写权限。Token 仅存储在本地 localStorage。</p>
+    <p class="modal-note">需要 <code>repo</code> 权限。Token 仅存储在本地浏览器，不会上传到任何服务器。</p>
     <div class="form-row">
       <div class="form-group">
         <label>用户名 / 组织</label>
@@ -906,7 +888,7 @@
   <div class="modal">
     <h2>✦ 启用 AI 协作</h2>
     <p class="ai-setup-desc">
-      ⌘G 可以让 AI 自动为选中节点生成子节点，帮你快速补全 Skill 内容。<br>
+      ⌘G 可以让 AI 自动为选中节点生成子节点，帮你拓展思路。<br>
       输入 Anthropic API Key 即可启用。
     </p>
     <div class="form-group">
@@ -2543,7 +2525,7 @@ function updateMarkdown() {
   if (document.activeElement === ta) return  // don't overwrite while user is editing
   const root = getActiveRoot()
   ta.value = root ? toSkillMd(root) : ''
-  updateLint()
+
 }
 
 // Markdown panel → tree (two-way sync)
@@ -2565,52 +2547,10 @@ document.getElementById('markdown-output').addEventListener('input', () => {
     renderAll()
     fitView()
     autoSave()
-    updateLint()
+  
   }, 400)
 })
 
-// ── Skill quality lint ────────────────────────────────────────
-function lintSkill(nodeData) {
-  const byType = { trigger: 0, step: 0, tool: 0 }
-  let totalNodes = 0
-  function scan(node) {
-    totalNodes++
-    if (!isRootNode(node.id) && node.type && byType[node.type] !== undefined) byType[node.type]++
-    for (const c of node.children || []) scan(c)
-  }
-  scan(nodeData)
-
-  const warnings = []
-  const defaultNames = ['思维导图', 'My Skill', '未命名']
-  if (!nodeData.topic?.trim() || defaultNames.includes(nodeData.topic.trim())) {
-    warnings.push({ level: 'warn', text: '技能名称未设置 — 双击根节点修改' })
-  }
-  if (byType.trigger === 0) {
-    warnings.push({ level: 'warn', text: '缺少触发条件 — 什么情况下该使用这个 skill？' })
-  }
-  if (byType.step === 0) {
-    warnings.push({ level: 'error', text: '缺少执行步骤 — skill 没有任何步骤节点' })
-  } else if (byType.step === 1) {
-    warnings.push({ level: 'warn', text: '只有 1 个执行步骤，建议至少 2 个' })
-  }
-  if (byType.tool === 0 && byType.step > 0) {
-    warnings.push({ level: 'warn', text: '未指定工具 — 若 skill 需要 Claude 调用工具请添加工具节点' })
-  }
-  if (totalNodes <= 3) {
-    warnings.push({ level: 'warn', text: 'Skill 内容较少 — 选中节点按 ⌘G 让 AI 帮你扩展' })
-  }
-  return warnings
-}
-
-function updateLint() {
-  const panel = document.getElementById('lint-panel')
-  if (!panel) return
-  const root = getActiveRoot()
-  const warnings = root ? lintSkill(root) : []
-  panel.innerHTML = warnings.map(w =>
-    `<div class="lint-item"><span class="lint-dot ${w.level}"></span><span>${w.text}</span></div>`
-  ).join('')
-}
 
 function countNodes(node) {
   let n = 1
