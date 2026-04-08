@@ -85,7 +85,7 @@
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
     }
-    .logo-mark svg { width: 15px; height: 15px; }
+    .logo-mark span { user-select: none; }
     header h1 {
       font-size: 15px; font-weight: 600;
       color: var(--text);
@@ -708,9 +708,7 @@
 <header>
   <div class="logo">
     <div class="logo-mark">
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <text x="12" y="17" text-anchor="middle" font-size="16" font-weight="700" font-family="serif" fill="white" stroke="none">α</text>
-      </svg>
+      <span style="color:white;font-family:Georgia,Times,serif;font-style:italic;font-size:18px;line-height:1;">α</span>
     </div>
     <h1>Arete</h1>
     <span class="save-indicator" id="save-indicator"></span>
