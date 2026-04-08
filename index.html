@@ -1830,14 +1830,30 @@ document.addEventListener('mousemove', e => {
       const descIds = new Set()
       ;(function collectDesc(n) { descIds.add(n.id); (n.children||[]).forEach(collectDesc) })(dragState.node)
       let bestNode = null, bestDist = SNAP_DIST, magnetMode = null
+      const dragEl = document.getElementById('n-' + draggedId)
+      const dragW = dragEl ? dragEl.offsetWidth / scale : 80
+      const dragH = dragEl ? dragEl.offsetHeight / scale : 32
+      const dragCx = dragState.node.x + dragW / 2
+      const dragCy = dragState.node.y + dragH / 2
       for (const [id, nd] of nodeMap) {
         if (descIds.has(id)) continue
-        const dist = Math.hypot(nd.x - dragState.node.x, nd.y - dragState.node.y)
+        const nel = document.getElementById('n-' + id)
+        const nw = nel ? nel.offsetWidth / scale : 80
+        const nh = nel ? nel.offsetHeight / scale : 32
+        // Distance from drag center to target node boundary (clamped)
+        const cx = nd.x + nw / 2
+        const cy = nd.y + nh / 2
+        const closestX = Math.max(nd.x, Math.min(dragCx, nd.x + nw))
+        const closestY = Math.max(nd.y, Math.min(dragCy, nd.y + nh))
+        const dist = Math.hypot(closestX - dragCx, closestY - dragCy)
         if (dist < bestDist) { bestDist = dist; bestNode = nd }
       }
       if (bestNode) {
-        const dx = dragState.node.x - bestNode.x
-        const dy = dragState.node.y - bestNode.y
+        const bel = document.getElementById('n-' + bestNode.id)
+        const bw = bel ? bel.offsetWidth / scale : 80
+        const bh = bel ? bel.offsetHeight / scale : 32
+        const dx = dragCx - (bestNode.x + bw / 2)
+        const dy = dragCy - (bestNode.y + bh / 2)
         if (Math.abs(dx) >= Math.abs(dy)) {
           // Horizontal approach → reparent
           magnetMode = 'reparent'
