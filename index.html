@@ -2596,23 +2596,27 @@ function toSkillMd(root) {
   }
 
   // Untyped nodes — use ## headings for first-level children, nested lists below
+  // Helper: image markdown (skip base64 in preview, only show external URLs)
+  function imgTag(node) {
+    if (!node.image?.url) return ''
+    if (node.image.url.startsWith('data:')) return ' [图片]'
+    return `\n![${node.topic}](${node.image.url})`
+  }
+
   function renderChildren(node, depth) {
     let out = ''
     for (const child of node.children || []) {
-      if (child.type && byType[child.type]) continue  // skip typed nodes (already rendered)
+      if (child.type && byType[child.type]) continue
       if (!child.topic) continue
-      // Image support
-      const imgMd = child.image ? `\n![${child.topic}](${child.image.url})\n` : ''
       if (depth === 0) {
-        // First-level children → ## heading
         out += `## ${child.topic}\n\n`
-        if (imgMd) out += imgMd + '\n'
+        const img = imgTag(child)
+        if (img && !img.startsWith(' ')) out += img + '\n\n'
         out += renderChildren(child, depth + 1)
         if (!out.endsWith('\n\n')) out += '\n'
       } else {
-        // Deeper levels → nested list with 4-space indent (GitHub/Obsidian compatible)
         const indent = '    '.repeat(Math.max(0, depth - 1))
-        out += `${indent}- ${child.topic}${imgMd}\n`
+        out += `${indent}- ${child.topic}${imgTag(child)}\n`
         out += renderChildren(child, depth + 1)
       }
     }
@@ -2621,19 +2625,17 @@ function toSkillMd(root) {
 
   const hasTyped = Object.values(byType).some(a => a.length > 0)
   if (hasTyped) {
-    // Check if there are untyped children
     const hasUntyped = root.children?.some(c => !c.type || !byType[c.type])
     if (hasUntyped) md += `## 内容\n\n`
   }
-  // Render root image if exists
-  if (root.image) md += `![${root.topic}](${root.image.url})\n\n`
+  if (root.image && !root.image.url.startsWith('data:')) {
+    md += `![${root.topic}](${root.image.url})\n\n`
+  }
   if (hasTyped) {
-    // For typed mode, only render untyped nodes
     for (const child of root.children || []) {
       if (child.type && byType[child.type]) continue
       if (!child.topic) continue
-      const imgMd = child.image ? `\n![${child.topic}](${child.image.url})\n` : ''
-      md += `- ${child.topic}${imgMd}\n`
+      md += `- ${child.topic}${imgTag(child)}\n`
       md += renderChildren(child, 1)
     }
   } else {
