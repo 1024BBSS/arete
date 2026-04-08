@@ -1137,6 +1137,7 @@ function findRoot(id) {
 // ════════════════════════════════════════════════════
 const NODE_H_GAP     = 40   // gap between parent's right edge and child's left edge
 const NODE_MIN_H     = 60   // minimum vertical slot height per node
+const NODE_V_PAD     = 12   // extra vertical padding between nodes
 
 // Dynamic horizontal spacing: parent node width + gap
 function nodeHSpacing(node) {
@@ -1145,13 +1146,24 @@ function nodeHSpacing(node) {
   return w + NODE_H_GAP
 }
 
+// Actual rendered height of a single node (accounts for images)
+function nodeSlotH(node) {
+  const el = document.getElementById('n-' + node.id)
+  if (el) {
+    const h = el.offsetHeight / scale + NODE_V_PAD
+    return Math.max(NODE_MIN_H, h)
+  }
+  return NODE_MIN_H
+}
+
 // subtreeH: height of a node's visible subtree in layout units.
 // respectCollapse=true → treats collapsed nodes as leaves (used by relayout).
 function subtreeH(node, min = NODE_MIN_H, respectCollapse = false) {
-  if (respectCollapse && node.collapsed) return min
+  const selfH = nodeSlotH(node)
+  if (respectCollapse && node.collapsed) return selfH
   const ch = node.children || []
-  if (!ch.length) return min
-  return Math.max(min, ch.reduce((s, c) => s + subtreeH(c, min, respectCollapse), 0))
+  if (!ch.length) return selfH
+  return Math.max(selfH, ch.reduce((s, c) => s + subtreeH(c, min, respectCollapse), 0))
 }
 
 function autoLayout(node, x, y) {
@@ -2022,7 +2034,8 @@ async function handleImageFile(file) {
   img.onload = () => {
     node.image = { url: dataUrl, width: img.naturalWidth, height: img.naturalHeight }
     renderAll()
-    autoSave()
+    // Relayout after image renders to avoid overlap
+    requestAnimationFrame(() => { relayoutFromNode(node.id); autoSave() })
     toast('图片已添加')
   }
   img.src = dataUrl
