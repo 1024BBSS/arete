@@ -2501,25 +2501,49 @@ function toSkillMd(root) {
     md += '\n'
   }
 
-  // Untyped nodes — output with hierarchy preserved
-  const untyped = []
-  function collectUntyped(node, depth) {
-    if (!isRootNode(node.id) && (!node.type || !byType[node.type]) && node.topic) {
-      untyped.push({ topic: node.topic, depth, children: node.children || [] })
+  // Untyped nodes — use ## headings for first-level children, nested lists below
+  function renderChildren(node, depth) {
+    let out = ''
+    for (const child of node.children || []) {
+      if (child.type && byType[child.type]) continue  // skip typed nodes (already rendered)
+      if (!child.topic) continue
+      // Image support
+      const imgMd = child.image ? `\n![${child.topic}](${child.image.url})\n` : ''
+      if (depth === 0) {
+        // First-level children → ## heading
+        out += `## ${child.topic}\n\n`
+        if (imgMd) out += imgMd + '\n'
+        out += renderChildren(child, depth + 1)
+        if (!out.endsWith('\n\n')) out += '\n'
+      } else {
+        // Deeper levels → nested list with 4-space indent (GitHub/Obsidian compatible)
+        const indent = '    '.repeat(Math.max(0, depth - 1))
+        out += `${indent}- ${child.topic}${imgMd}\n`
+        out += renderChildren(child, depth + 1)
+      }
     }
-    for (const c of node.children || []) collectUntyped(c, depth + 1)
+    return out
   }
-  collectUntyped(root, 0)
 
-  if (untyped.length) {
-    // If there are also typed sections, add a heading for untyped content
-    const hasTyped = Object.values(byType).some(a => a.length > 0)
-    if (hasTyped) md += `## 内容\n\n`
-    untyped.forEach(n => {
-      const indent = '  '.repeat(Math.max(0, n.depth - 1))
-      md += `${indent}- ${n.topic}\n`
-    })
-    md += '\n'
+  const hasTyped = Object.values(byType).some(a => a.length > 0)
+  if (hasTyped) {
+    // Check if there are untyped children
+    const hasUntyped = root.children?.some(c => !c.type || !byType[c.type])
+    if (hasUntyped) md += `## 内容\n\n`
+  }
+  // Render root image if exists
+  if (root.image) md += `![${root.topic}](${root.image.url})\n\n`
+  if (hasTyped) {
+    // For typed mode, only render untyped nodes
+    for (const child of root.children || []) {
+      if (child.type && byType[child.type]) continue
+      if (!child.topic) continue
+      const imgMd = child.image ? `\n![${child.topic}](${child.image.url})\n` : ''
+      md += `- ${child.topic}${imgMd}\n`
+      md += renderChildren(child, 1)
+    }
+  } else {
+    md += renderChildren(root, 0)
   }
 
   return md
