@@ -1961,6 +1961,57 @@ wrapper.addEventListener('contextmenu', e => {
   if (!e.target.closest('.mm-node')) e.preventDefault()
 })
 
+// ── Paste / Drop image onto selected node ────────────────────
+function readImageAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+async function handleImageFile(file) {
+  if (!file || !file.type.startsWith('image/')) return
+  const node = selectedId && nodeMap.get(selectedId)
+  if (!node) { toast('请先选中一个节点', true); return }
+  const dataUrl = await readImageAsDataURL(file)
+  // Get dimensions from image
+  const img = new Image()
+  img.onload = () => {
+    const maxW = 300
+    const w = Math.min(img.naturalWidth, maxW)
+    const h = Math.round(w * img.naturalHeight / img.naturalWidth)
+    node.image = { url: dataUrl, width: w, height: h }
+    renderAll()
+    autoSave()
+    toast('图片已添加')
+  }
+  img.src = dataUrl
+}
+
+document.addEventListener('paste', e => {
+  // Don't intercept paste in text inputs
+  if (document.activeElement?.contentEditable === 'true' ||
+      ['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)) return
+  const items = e.clipboardData?.items
+  if (!items) return
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault()
+      handleImageFile(item.getAsFile())
+      return
+    }
+  }
+})
+
+wrapper.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' })
+wrapper.addEventListener('drop', e => {
+  e.preventDefault()
+  const file = e.dataTransfer?.files?.[0]
+  if (file && file.type.startsWith('image/')) handleImageFile(file)
+})
+
 // ── Inline edit ──────────────────────────────────────────────
 function scrollNodeToCenter(node) {
   const rect = wrapper.getBoundingClientRect()
@@ -3161,6 +3212,13 @@ function updateLocalDirStatus() {
   document.getElementById('local-autosync').checked = localStorage.getItem('local-autosync') === 'true'
 }
 
+function sanitizeFileName(name) {
+  return (name || '未命名').replace(/[<>:"/\\|?*]/g, '_')
+}
+
+// Track previous file names per tab to clean up on rename
+let _prevTabFileNames = JSON.parse(localStorage.getItem('local-sync-filenames') || '{}')
+
 async function syncToLocalFolder(silent = true) {
   if (!_localDirHandle || localStorage.getItem('local-autosync') !== 'true') return
   try {
@@ -3170,19 +3228,67 @@ async function syncToLocalFolder(silent = true) {
       const req = await _localDirHandle.requestPermission({ mode: 'readwrite' })
       if (req !== 'granted') return
     }
-    // Write each tab as a separate .md file
+
+    // Create images subfolder for base64 images
+    let imgDirHandle = null
+    try { imgDirHandle = await _localDirHandle.getDirectoryHandle('images', { create: true }) } catch {}
+
+    const currentFileNames = {}
+
     for (const tab of tabs) {
       const root = tab.tree?.roots?.[0]
       if (!root) continue
-      const fileName = (tab.name || '未命名')
-        .replace(/[<>:"/\\|?*]/g, '_')  // sanitize filename
-        + '.md'
-      const md = toSkillMd(root)
+      const baseName = sanitizeFileName(tab.name)
+      const fileName = baseName + '.md'
+      currentFileNames[tab.id] = fileName
+
+      // Delete old file if tab was renamed
+      const prevName = _prevTabFileNames[tab.id]
+      if (prevName && prevName !== fileName) {
+        try { await _localDirHandle.removeEntry(prevName) } catch {}
+      }
+
+      // Extract and save base64 images as files, replace URLs in a copy
+      let md = toSkillMd(root)
+      if (imgDirHandle) {
+        let imgIdx = 0
+        const b64re = /!\[([^\]]*)\]\((data:image\/([^;]+);base64,[^)]+)\)/g
+        const replacements = []
+        let match
+        while ((match = b64re.exec(md)) !== null) {
+          const [full, alt, dataUrl, ext] = match
+          const imgName = `${baseName}_${imgIdx++}.${ext === 'jpeg' ? 'jpg' : ext}`
+          // Decode and save image file
+          const byteStr = atob(dataUrl.split(',')[1])
+          const bytes = new Uint8Array(byteStr.length)
+          for (let i = 0; i < byteStr.length; i++) bytes[i] = byteStr.charCodeAt(i)
+          const imgFh = await imgDirHandle.getFileHandle(imgName, { create: true })
+          const w = await imgFh.createWritable()
+          await w.write(bytes)
+          await w.close()
+          replacements.push({ full, alt, imgName })
+        }
+        for (const r of replacements) {
+          md = md.replace(r.full, `![${r.alt}](images/${r.imgName})`)
+        }
+      }
+
       const fh = await _localDirHandle.getFileHandle(fileName, { create: true })
       const writable = await fh.createWritable()
       await writable.write(md)
       await writable.close()
     }
+
+    // Delete files for tabs that no longer exist
+    for (const [tabId, oldName] of Object.entries(_prevTabFileNames)) {
+      if (!currentFileNames[tabId]) {
+        try { await _localDirHandle.removeEntry(oldName) } catch {}
+      }
+    }
+
+    _prevTabFileNames = currentFileNames
+    localStorage.setItem('local-sync-filenames', JSON.stringify(currentFileNames))
+
     if (!silent) toast('✓ 已同步到本地文件夹')
     document.getElementById('save-indicator').textContent += ' · 本地 ✓'
   } catch (e) {
