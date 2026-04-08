@@ -724,12 +724,12 @@
 <div class="tab-bar" id="tab-bar"></div>
 
 <div class="main">
-  <div id="canvas-wrapper">
-    <div id="canvas">
-      <svg id="edges-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="canvas-wrapper" tabindex="-1">
+    <div id="canvas" tabindex="-1">
+      <svg id="edges-svg" xmlns="http://www.w3.org/2000/svg" focusable="false" tabindex="-1"></svg>
     </div>
     <div id="minimap-zone"></div>
-    <canvas id="minimap" width="180" height="120" title="小地图 · 点击居中"></canvas>
+    <canvas id="minimap" width="180" height="120" title="小地图 · 点击居中" tabindex="-1"></canvas>
     <!-- First-run empty state guide -->
     <div id="empty-guide" class="empty-guide">
       <div class="empty-guide-title">👋 空白画布</div>
